@@ -1,10 +1,16 @@
 import csv
 
+from error_dialog import show_error
+
 # CSVファイルから辞書を作成する
 def load_convert_dict():
-    with open('convert_dict.csv', encoding='UTF-8') as f:
-        reader = csv.DictReader(f)
-        return {row['before']: row['after'] for row in reader}
+    try:
+        with open('convert_dict.csv', encoding='UTF-8') as f:
+            reader = csv.DictReader(f)
+            return {row['before']: row['after'] for row in reader}
+    except FileNotFoundError as e:
+        show_error("設定ファイルエラー", f"'convert_dict.csv'が見つかりません。\n辞書変換機能を無効にします。\nerror: {e}")
+        print(f"error: {e}")
 
 def convert_text(text, convert_dict):
     # 長い順にソートして置換（短い語が先にマッチするのを防ぐ）

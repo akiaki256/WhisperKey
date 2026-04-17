@@ -2,11 +2,18 @@ import csv
 import webbrowser
 import subprocess
 
+from error_dialog import show_error
+
 # CSVファイルから辞書を作成する
 def load_command_dict():
-    with open('command_dict.csv', encoding='UTF-8') as f:
-        reader = csv.DictReader(f)
-        return {row['keyword']: {'tag': row['tag'], 'path': row['path']} for row in reader}
+    try:
+        with open('command_dict.csv', encoding='UTF-8') as f:
+            reader = csv.DictReader(f)
+            return {row['keyword']: {'tag': row['tag'], 'path': row['path']} for row in reader}
+        
+    except FileNotFoundError as e:
+        show_error("設定ファイルエラー", f"'command_dict.csv'が見つかりません\nコマンド実行機能を無効にします\nerror: {e}")
+        print(f"error: {e}")
 
 def execute_command(original_text, command_dict):
     for keyword, data in command_dict.items():
