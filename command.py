@@ -1,6 +1,6 @@
 import csv
 import webbrowser
-import subprocess
+import os
 
 from error_dialog import show_error
 
@@ -23,9 +23,9 @@ def execute_command(original_text, command_dict):
                 webbrowser.open(data['path'])
                 print(f"URL開く: {keyword} → {data['path']}")
 
-            elif data['tag'] == 'soft':
-                subprocess.Popen(data['path'])
-                print(f"ソフト起動: {keyword} → {data['path']}")
+            elif data['tag'] == 'file':
+                os.startfile(data['path'])
+                print(f"ファイルを開く: {keyword} → {data['path']}")
 
             return True
     print(f"コマンド該当なし: {original_text}")
