@@ -26,8 +26,9 @@ def cleanup_temp():
             try:
                 os.remove(rm_file_path)
                 print(f"{i}：削除に成功")
-            except:
+            except Exception as e:
                 print(f"{i}：削除に失敗")
+                print(f"error: {e}")
     
     else:
         print("クリーンアップ：一時音声ファイルは見つかりませんでした")

@@ -38,21 +38,22 @@ def whisper_function(model, language, wav_queue):
     """
 
     # CSVファイルからユーザー変換辞書を作成する
-    user_convert_dict_sutates = True
-    command_dict_sutates = True
-    try:
-        user_convert_dict = load_convert_dict()
-        print("ユーザー変換辞書取得：成功")
-    except:
-        user_convert_dict_sutates = False
+    user_convert_dict_status = True
+    command_dict_status = True
+
+    user_convert_dict = load_convert_dict()
+    if user_convert_dict is None:
         print("ユーザー変換辞書取得：失敗（辞書変換機能OFF）")
+        user_convert_dict_status = False
+    else:
+        print("ユーザー変換辞書取得：成功")
         
-    try:
-        command_dict = load_command_dict()
-        print("コマンド辞書取得：成功")
-    except:
-        command_dict_sutates = False
+    command_dict = load_command_dict()
+    if command_dict is None:
         print("コマンド辞書取得：失敗（コマンド実行機能OFF）")
+        command_dict_status = False
+    else:
+        print("コマンド辞書取得：成功")       
     
 
     while True:
@@ -77,23 +78,21 @@ def whisper_function(model, language, wav_queue):
         filtered_text = filter_hallucination(text)
 
         ## ユーザー辞書適応
-        if user_convert_dict_sutates:
+        if user_convert_dict_status == True:
             original_text = filtered_text
             result = convert_text(filtered_text, user_convert_dict)
         else:
             original_text = filtered_text
             result = filtered_text
 
-
-        if command_dict_sutates:
-            if result.strip() =="コマンド":
-                execute_command(original_text, command_dict)
-                print("コマンドを実行")
-                
-            elif result:  # 空文字でない場合のみ貼り付け
-                pyperclip.copy(result)
-                pyautogui.hotkey('ctrl', 'v')
-                print(f"入力: {result[:30]}...")  # 最初の30文字を表示
+        if command_dict_status == True and result.strip() == "コマンド":
+            execute_command(original_text, command_dict)
+            print("コマンドを実行")
+            
+        elif result:  # 空文字でない場合のみ貼り付け
+            pyperclip.copy(result)
+            pyautogui.hotkey('ctrl', 'v')
+            print(f"入力: {result[:30]}...") # 最初の30文字を表示
 
         # 処理済みファイルを削除
         os.remove(filepath)
