@@ -1,7 +1,12 @@
 {
     "volume_threshold": 1700,
     "silence_duration": 1.3,
+    "audio_device_index": null,
+    "audio_device_name": "既定のデバイスに自動接続",
+    "audio_device_sample_rate": 16000,
+
     "shortcut_key": "f9",
     "language": "ja",
-    "model_size": "large" 
+    "model_size": "large",
+    "edition": "gpu"
 }

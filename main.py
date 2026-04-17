@@ -45,7 +45,13 @@ wav_queue = Queue()
 ## 録音スレッド開始
 threading.Thread(
     target=recording_function,
-    args=(settings["volume_threshold"], settings["silence_duration"], wav_queue)
+    args=(
+        settings["volume_threshold"],
+        settings["silence_duration"],
+        settings["audio_device_index"],
+        settings["audio_device_sample_rate"],
+        wav_queue
+    )
 ).start()
 
 ## 文字起こしスレッド開始
