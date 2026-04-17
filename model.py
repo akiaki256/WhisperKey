@@ -21,10 +21,10 @@ def load_model(model_size):
             os.makedirs(models_dir)
             print("maked 'models'dir")
 
-        # 自動判定（CUDAあれば使う、なければCPU）
+        # デバイスとcompute_typeを自動判定（CUDAあればfloat16、なければint8等）
         model = WhisperModel(model_size, 
                         device="auto",
-                        compute_type="float16",
+                        compute_type="auto",
                         download_root=models_dir) 
 
         # GPUの有無を確認 "cuda" or "cpu"
