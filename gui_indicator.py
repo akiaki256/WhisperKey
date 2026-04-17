@@ -1,8 +1,6 @@
 import tkinter as tk
 from key_shortcut import MainStateManager
-from config import load_config
 
-settings = load_config()
 state_manager = MainStateManager()
 
 class IndicatorWindow:
