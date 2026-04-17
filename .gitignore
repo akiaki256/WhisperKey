@@ -1,0 +1,34 @@
+# 仮想環境
+.venv/
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+
+# Whisperモデル(容量大)
+models/
+
+# 一時ファイル(録音wav)
+temp/
+
+# VSCode設定
+.vscode/
+
+# ユーザー辞書(個人内容を含むため除外)
+convert_dict.csv
+command_dict.csv
+
+# Windowsショートカット
+*.lnk
+
+# batファイル
+*.bat
+
+# OS生成ファイル
+Thumbs.db
+Desktop.ini
+
+# PyInstaller成果物
+build/
+dist/
+*.spec

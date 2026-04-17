@@ -1,0 +1,7 @@
+{
+    "volume_threshold": 1700,
+    "silence_duration": 1.3,
+    "shortcut_key": "f9",
+    "language": "ja",
+    "model_size": "large" 
+}
