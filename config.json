@@ -6,6 +6,5 @@
     "audio_device_sample_rate": 16000,
     "shortcut_key": "f9",
     "language": "ja",
-    "model_size": "large-v3",
-    "edition": "gpu"
+    "model_size": "large-v3"
 }

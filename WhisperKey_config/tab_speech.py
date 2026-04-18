@@ -8,6 +8,7 @@
 import customtkinter as ctk
 
 import constants as C
+from edition import EDITION
 
 
 class SpeechTab(ctk.CTkFrame):
@@ -21,9 +22,12 @@ class SpeechTab(ctk.CTkFrame):
         """
         super().__init__(parent, fg_color="transparent")
         
-        self._edition = config.get("edition", "gpu")
+        # editionはedition.pyから取得
+        self._edition = EDITION
         self._initial_language = config.get("language", C.LANGUAGE_DEFAULT)
-        self._initial_model = config.get("model_size", C.MODEL_DEFAULT_GPU)
+        # モデルサイズのデフォルトはeditionに応じて切り替え
+        default_model = C.MODEL_DEFAULT_CPU if EDITION == "cpu" else C.MODEL_DEFAULT_GPU
+        self._initial_model = config.get("model_size", default_model)
         
         # 変数
         self.var_language = ctk.StringVar(value=self._initial_language)

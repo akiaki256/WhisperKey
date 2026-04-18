@@ -13,6 +13,7 @@ import constants as C
 import config_io
 import csv_io
 import single_instance
+from edition import EDITION
 from tab_basic import BasicTab
 from tab_speech import SpeechTab
 from tab_dict import DictTab
@@ -28,8 +29,7 @@ class ConfigApp(ctk.CTk):
         self.config_data = config
         
         # -------- ウィンドウ設定 --------
-        edition = config.get("edition", "unknown")
-        edition_label = C.EDITION_LABELS.get(edition, C.EDITION_LABEL_UNKNOWN)
+        edition_label = C.EDITION_LABELS.get(EDITION, C.EDITION_LABEL_UNKNOWN)
         self.title(f"{C.WINDOW_TITLE_BASE} {edition_label}")
         
         self.geometry(f"{C.WINDOW_WIDTH}x{C.WINDOW_HEIGHT}")
@@ -178,7 +178,7 @@ class ConfigApp(ctk.CTk):
             self.tabview.set("コマンド")
             return
         
-        # 3. config.json 用のdictを構築
+        # 3. config.json 用のdictを構築(editionは書き込まない)
         new_config = {
             "volume_threshold": basic_values["volume_threshold"],
             "silence_duration": basic_values["silence_duration"],
@@ -188,8 +188,6 @@ class ConfigApp(ctk.CTk):
             "shortcut_key": basic_values["shortcut_key"],
             "language": speech_values["language"],
             "model_size": speech_values["model_size"],
-            # editionは変更しない。元の値を保持(unknownなら元ファイルの値を拾う必要あり)
-            "edition": self._resolve_edition_for_save(),
         }
         
         # 4. ファイル書き込み
@@ -247,19 +245,6 @@ class ConfigApp(ctk.CTk):
                 return v
             seen.add(v)
         return None
-    
-    def _resolve_edition_for_save(self):
-        """
-        保存時のedition値を決定する。
-        - config読込時点で "cpu" or "gpu" なら → そのまま
-        - "unknown" だった場合 → 元のファイルの生値をそのまま保持したいが、
-          load_config後にはもう"unknown"化されているため、ここではデフォルト"gpu"で保存する。
-          (不正な値を正規化して保存する方がユーザーにとって親切)
-        """
-        edition = self.config_data.get("edition", "unknown")
-        if edition in ("cpu", "gpu"):
-            return edition
-        return "gpu"  # unknown時のフォールバック
     
     def _restart_main_process(self):
         """restart.bat をデタッチ起動"""
