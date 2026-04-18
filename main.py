@@ -35,13 +35,30 @@ except ImportError:
 
 
 # ========================================================
-# CUDA DLL パス設定(開発環境用)
+# CUDA DLL パス設定(GPU版 & 開発環境のみ)
+# exe化後はPyInstallerが自動でDLLパスを解決するので、この処理は不要
 # ========================================================
-venv_path = os.path.dirname(sys.executable)
-cuda_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages", "nvidia", "cublas", "bin"))
-cudnn_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages", "nvidia", "cudnn", "bin"))
+from edition import EDITION
 
-os.environ["PATH"] = cuda_bin + os.pathsep + cudnn_bin + os.pathsep + os.environ["PATH"]
+if EDITION == "gpu" and not getattr(sys, "frozen", False):
+    venv_path = os.path.dirname(sys.executable)
+    cuda_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages", "nvidia", "cublas", "bin"))
+    cudnn_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages", "nvidia", "cudnn", "bin"))
+    
+    os.environ["PATH"] = cuda_bin + os.pathsep + cudnn_bin + os.pathsep + os.environ["PATH"]
+
+
+# ========================================================
+# 起動時CUDAチェック(GPU版のみ)
+# ========================================================
+if EDITION == "gpu":
+    from cuda_check import ensure_cuda_available
+    try:
+        ensure_cuda_available()
+    except SystemExit:
+        # CUDAチェック失敗時は起動中インジケーターを閉じて終了
+        startup.close()
+        raise
 
 
 # ========================================================
@@ -57,6 +74,7 @@ from key_shortcut import MainStateManager
 from audio import recording_function
 from transcribe import whisper_function
 from gui_indicator import IndicatorWindow
+import tray_icon
 
 
 # ========================================================
@@ -105,6 +123,9 @@ threading.Thread(
     target=whisper_function,
     args=(model, settings["language"], wav_queue)
 ).start()
+
+## システムトレイを別スレッドで起動
+tray_icon.start_tray_in_background()
 
 ## インジケーター表示(mainloop)
 indicator.run()

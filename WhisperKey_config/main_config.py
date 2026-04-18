@@ -147,6 +147,11 @@ class ConfigApp(ctk.CTk):
     
     def _on_save(self):
         """保存ボタン押下時のフロー"""
+        # 変更なしならGUIを閉じるだけ(再起動しない)
+        if not self._is_modified():
+            self.destroy()
+            return
+        
         # 1. 全タブの入力値を集約
         basic_values = self.tab_basic.get_values()
         speech_values = self.tab_speech.get_values()
