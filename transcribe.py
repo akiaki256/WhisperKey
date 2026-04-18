@@ -85,8 +85,12 @@ def whisper_function(model, language, wav_queue):
             original_text = filtered_text
             result = filtered_text
 
-        if command_dict_status == True and result.strip() == "コマンド":
-            execute_command(original_text, command_dict)
+        # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
+        command_executed = False
+        if command_dict_status == True:
+            command_executed = execute_command(original_text, command_dict)
+
+        if command_executed:
             print("コマンドを実行")
             
         elif result:  # 空文字でない場合のみ貼り付け

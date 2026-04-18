@@ -8,6 +8,30 @@ cudnn_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages"
 
 os.environ["PATH"] = cuda_bin + os.pathsep + cudnn_bin + os.pathsep + os.environ["PATH"]
 
+# ====== 多重起動防止 ======
+import ctypes
+
+try:
+    import win32event
+    import win32api
+    import winerror
+    
+    # 名前付きMutexを取得
+    _mutex_handle = win32event.CreateMutex(None, False, "Global\\WhisperKey_MainProcess")
+    
+    if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
+        # すでに起動中 → Windows標準のMessageBoxでお知らせして終了
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            "WhisperKeyはすでに起動しています。",
+            "起動エラー",
+            0x30  # MB_OK + MB_ICONWARNING
+        )
+        sys.exit(0)
+except ImportError:
+    # pywin32が無い環境では多重起動チェックをスキップ
+    print("warning: pywin32 is not available. multi-instance check is skipped.")
+# ==========================
 
 import threading          # 処理を同時実行できるようになる
 from queue import Queue
