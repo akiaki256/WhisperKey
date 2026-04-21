@@ -23,6 +23,7 @@ command_dict.csv
 
 # batファイル
 *.bat
+!restart.bat
 
 # OS生成ファイル
 Thumbs.db

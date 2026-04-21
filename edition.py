@@ -1,2 +1,2 @@
-# edition switch file - GPU build
-from edition_gpu import EDITION
+# edition switch file - CPU build
+from edition_cpu import EDITION

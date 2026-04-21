@@ -1,6 +1,6 @@
 import os
 import pyperclip
-import pyautogui
+import keyboard
 from convert_dict import load_convert_dict, convert_text
 from command import load_command_dict, execute_command
 
@@ -94,7 +94,7 @@ def whisper_function(model, language, wav_queue):
             
         elif result:  # 空文字でない場合のみ貼り付け
             pyperclip.copy(result)
-            pyautogui.hotkey('ctrl', 'v')
+            keyboard.send('ctrl+v')
             print(f"入力: {result[:30]}...") # 最初の30文字を表示
 
         # 処理済みファイルを削除
