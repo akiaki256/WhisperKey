@@ -93,12 +93,13 @@ class DictEditDialog(ctk.CTkToplevel):
         
         # バリデーション:
         # - 変換前: 空白のみもエラー(Whisperは空白のみを出力しないので検知不可能)
-        # - 変換後: 純粋な空文字のみエラー(空白だけに置換したいケースを許可)
-        if not before.strip() or after == "":
+        # - 変換後: 空文字も許可(Whisperのハルシネーションをブロックする用途のため)
+        if not before.strip():
             CTkMessagebox(
                 master=self,
                 title="入力エラー",
-                message="変換前・変換後の両方を入力してください。\n(変換前は空白のみの入力はできません)",
+                message="変換前を入力してください。\n(空白のみの入力はできません)\n\n"
+                        "※ 変換後を空欄にすると、変換前の文字列を削除する動作になります。",
                 icon="warning",
                 option_1="OK",
             )

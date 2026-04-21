@@ -44,8 +44,8 @@ def load_convert_dict():
             for row in reader:
                 before = row.get("before") or ""
                 after = row.get("after") or ""
-                # 両方空文字の行はスキップ(空白のみは保持)
-                if before == "" and after == "":
+                # beforeが空の行のみスキップ(afterは空文字でも有効: ハルシネーションブロック用途)
+                if before == "":
                     continue
                 rows.append({"before": before, "after": after})
             return rows

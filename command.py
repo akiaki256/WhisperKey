@@ -16,8 +16,10 @@ def load_command_dict():
         print(f"error: {e}")
 
 def execute_command(original_text, command_dict):
+    # 文章全体の前後の空白だけ除去して比較(Whisperの出力癖への対策)
+    cleaned_text = original_text.strip()
     for keyword, data in command_dict.items():
-        if keyword in original_text:
+        if keyword == cleaned_text:
 
             if data['tag'] == 'url':
                 webbrowser.open(data['path'])

@@ -73,32 +73,9 @@ def recording_function(threshold, duration, device_index, sample_rate, wav_queue
         )
         print(f"error: {e}")
         p.terminate()
-        sys.exit(1)
-
-        try:
-            RATE = 16000  # フォールバック時は16kHz固定
-            stream = p.open(
-                format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                input_device_index=None,  # 既定デバイス
-                frames_per_buffer=CHUNK
-            )
-            print(f"マイク接続：成功（既定デバイス, rate={RATE}Hz）")
-
-        except Exception as e2:
-            # フォールバックも失敗したら終了
-            show_error(
-                "マイク接続エラー",
-                "既定のデバイスでもマイクに接続できませんでした。\n"
-                "マイクが接続されているか、Windowsの設定を確認してください。\n"
-                "ソフトを終了します。\n\n"
-                f"詳細: {e2}"
-            )
-            print(f"error: {e2}")
-            p.terminate()
-            sys.exit(1)
+        # 別スレッドから呼ばれるためsys.exitではプロセス全体が終了しない
+        # os._exitでプロセスごと強制終了させる
+        os._exit(1)
 
     silence_duration = 0
     frames = []

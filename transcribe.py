@@ -79,16 +79,15 @@ def whisper_function(model, language, wav_queue):
 
         ## ユーザー辞書適応
         if user_convert_dict_status == True:
-            original_text = filtered_text
             result = convert_text(filtered_text, user_convert_dict)
         else:
-            original_text = filtered_text
             result = filtered_text
 
         # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
+        # 辞書変換後の文字列で判定する(表記揺れを辞書側で吸収できるようにするため)
         command_executed = False
         if command_dict_status == True:
-            command_executed = execute_command(original_text, command_dict)
+            command_executed = execute_command(result, command_dict)
 
         if command_executed:
             print("コマンドを実行")
