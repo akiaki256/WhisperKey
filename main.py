@@ -35,17 +35,32 @@ except ImportError:
 
 
 # ========================================================
-# CUDA DLL パス設定(GPU版 & 開発環境のみ)
-# exe化後はPyInstallerが自動でDLLパスを解決するので、この処理は不要
+# CUDA DLL パス設定(GPU版)
+# 開発時: 仮想環境のsite-packages内のnvidiaパッケージを参照
+# exe化後: sys._MEIPASS配下に展開されたDLLを参照
 # ========================================================
 from edition import EDITION
 
-if EDITION == "gpu" and not getattr(sys, "frozen", False):
-    venv_path = os.path.dirname(sys.executable)
-    cuda_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages", "nvidia", "cublas", "bin"))
-    cudnn_bin = os.path.abspath(os.path.join(venv_path, "..", "Lib", "site-packages", "nvidia", "cudnn", "bin"))
+if EDITION == "gpu":
+    if getattr(sys, "frozen", False):
+        # exe化後: PyInstallerが展開した一時ディレクトリ
+        base_path = sys._MEIPASS
+    else:
+        # 開発中: 仮想環境のsite-packages
+        base_path = os.path.join(os.path.dirname(sys.executable), "..", "Lib", "site-packages")
     
-    os.environ["PATH"] = cuda_bin + os.pathsep + cudnn_bin + os.pathsep + os.environ["PATH"]
+    cuda_bin = os.path.abspath(os.path.join(base_path, "nvidia", "cublas", "bin"))
+    cudnn_bin = os.path.abspath(os.path.join(base_path, "nvidia", "cudnn", "bin"))
+    
+    for p in [cuda_bin, cudnn_bin]:
+        if os.path.exists(p):
+            os.environ["PATH"] = p + os.pathsep + os.environ["PATH"]
+            # Python 3.8+ 推奨: DLL検索パスを明示的に追加
+            if hasattr(os, "add_dll_directory"):
+                try:
+                    os.add_dll_directory(p)
+                except Exception:
+                    pass
 
 
 # ========================================================

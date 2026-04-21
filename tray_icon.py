@@ -15,8 +15,22 @@ import pystray
 from PIL import Image
 
 
-# アイコンファイルパス
-_ICON_PATH = os.path.join("items", "stray_icon.png")
+def _get_resource_path(relative_path):
+    """
+    リソースファイルのパスを取得(frozen/開発両対応)。
+    exe化後は _MEIPASS から、開発中はカレントディレクトリから探す。
+    """
+    if getattr(sys, "frozen", False):
+        # PyInstallerで展開された一時ディレクトリ
+        base_path = sys._MEIPASS
+    else:
+        # 開発中: カレントディレクトリ基準
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+# アイコンファイルパス(frozen対応で解決)
+_ICON_PATH = _get_resource_path(os.path.join("items", "stray_icon.png"))
 
 # 設定exeのファイル名 / 開発中の設定スクリプトパス
 _CONFIG_EXE_NAME = "Config.exe"

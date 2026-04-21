@@ -14,9 +14,15 @@ class ModelLoadError(Exception):
 def load_model(model_size):
     print("faster-Whisper model load：start")
     try:
-        # modelsフォルダのパスを作成
-        this_file = os.path.abspath(__file__)
-        project_root = os.path.dirname(this_file)
+        # modelsフォルダのパスを作成(frozen/開発両対応)
+        if getattr(sys, "frozen", False):
+            # exe化後: exeと同じディレクトリ基準
+            project_root = os.path.dirname(sys.executable)
+        else:
+            # 開発中: model.pyと同じディレクトリ基準
+            this_file = os.path.abspath(__file__)
+            project_root = os.path.dirname(this_file)
+        
         models_dir = os.path.join(project_root, "models")
 
         if not os.path.exists(models_dir):

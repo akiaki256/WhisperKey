@@ -252,7 +252,7 @@ class ConfigApp(ctk.CTk):
         return None
     
     def _restart_main_process(self):
-        """restart.bat をデタッチ起動"""
+        """restart.bat を非表示で起動"""
         if not os.path.exists(C.RESTART_BAT_PATH):
             CTkMessagebox(
                 master=self,
@@ -266,7 +266,7 @@ class ConfigApp(ctk.CTk):
         try:
             subprocess.Popen(
                 [C.RESTART_BAT_PATH],
-                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                creationflags=subprocess.CREATE_NO_WINDOW,
                 close_fds=True,
                 shell=False,
             )
