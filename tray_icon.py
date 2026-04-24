@@ -1,9 +1,10 @@
 """
 システムトレイアイコン
 仕様:
-- 右クリックメニュー: 「設定を開く」「終了」の2項目
+- 右クリックメニュー: 「設定を開く」「再起動」「終了」の3項目
 - ツールチップ: "WhisperKey"
 - アイコン: items/stray_icon.png
+- 「再起動」は restart.bat を起動してプロセス再起動
 - 「終了」は os._exit(0) で即終了
 """
 
@@ -36,6 +37,9 @@ _ICON_PATH = _get_resource_path(os.path.join("items", "stray_icon.png"))
 _CONFIG_EXE_NAME = "Config.exe"
 _CONFIG_SCRIPT_PATH = os.path.join("WhisperKey_config", "main_config.py")
 
+# 再起動用バッチファイル (Config.exe とも共有)
+_RESTART_BAT_NAME = "restart.bat"
+
 
 def _open_config(icon, item):
     """「設定を開く」: 設定exeまたは設定スクリプトを起動"""
@@ -64,6 +68,39 @@ def _open_config(icon, item):
         print(f"設定画面の起動に失敗: {e}")
 
 
+def _restart(icon, item):
+    """「再起動」: restart.bat を起動してプロセスを再起動する。
+    
+    ショートカットキーが効かなくなる症状への対処用。
+    restart.bat 側で taskkill → sleep → WhisperKey.exe 起動を実行するため、
+    自プロセスは taskkill で強制終了される(os._exit は呼ばない)。
+    
+    開発中(frozen でない)の場合は restart.bat のパス解決が複雑なため、
+    対症療法として終了のみ行う。
+    """
+    if not getattr(sys, "frozen", False):
+        # 開発中は exe 構成ではないため、単に終了
+        # (開発中に「再起動」ボタンを押す想定は薄い)
+        print("開発中は再起動機能は無効です。手動で再起動してください。")
+        return
+    
+    try:
+        exe_dir = os.path.dirname(sys.executable)
+        bat_path = os.path.join(exe_dir, _RESTART_BAT_NAME)
+        subprocess.Popen(
+            [bat_path],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            cwd=exe_dir,
+            close_fds=True,
+        )
+        # restart.bat 側の taskkill で自プロセスは終了するため、
+        # 明示的に os._exit は呼ばない
+    except Exception as e:
+        # バッチ起動に失敗した場合、プロセスは生き残る
+        # ユーザーは手動で「終了」→再起動で対処可能
+        print(f"再起動処理に失敗: {e}")
+
+
 def _quit(icon, item):
     """「終了」: プロセスを即終了(os._exit)"""
     # システムトレイアイコンを先に停止
@@ -88,6 +125,7 @@ def _build_icon():
     # 右クリックメニュー
     menu = pystray.Menu(
         pystray.MenuItem("設定を開く", _open_config),
+        pystray.MenuItem("再起動", _restart),
         pystray.MenuItem("終了", _quit),
     )
     

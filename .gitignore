@@ -32,4 +32,14 @@ Desktop.ini
 # PyInstaller成果物
 build/
 dist/
+dist_package/
 *.spec
+
+# インストーラーソース(ビルド済み配布物、サイズが大きい)
+WhisperKey_cpu/
+WhisperKey_gpu/
+WhisperKey_cpu_console/
+WhisperKey_gpu_console/
+
+# Inno Setup スクリプトと出力
+installer/
