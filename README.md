@@ -35,15 +35,20 @@
 
 本ソフトウェアの実行ファイル版(インストーラー形式)は BOOTH にて販売しています。
 
-- **BOOTH ショップページ**: [URL を記載予定]
-- **CPU版**: 1,200円
-- **GPU版**: 1,500円
+- **BOOTH ショップページ**: 
+
+- **CPU版**: [(https://asaimo-eos.booth.pm/items/7284686)]
+    2,300円
+
+- **GPU版**: [https://asaimo-eos.booth.pm/items/8256368]
+    2,800円
+
 
 購入者は BOOTH のマイライブラリから最新版を無償でダウンロードできます。
 
-使い方の詳細な解説記事は Note にて公開しています:
+ソフトの概要・使い方を YouTube にて公開しています:
 
-- **使い方ガイド(Note)**: [URL を記載予定]
+- **ソフトの概要・使い方(YouTube)**: [(https://youtu.be/xYWT7ytiTmY)]
 
 ---
 
@@ -79,7 +84,7 @@ WhisperKey/
 ├── config.json          # ユーザー設定
 ├── WhisperKey_config/   # 設定GUIアプリ
 ├── items/               # アイコン等のリソース
-└── restart.bat          # 設定保存時のメイン再起動用
+└── restart.bat          # メイン再起動用
 ```
 
 ---
