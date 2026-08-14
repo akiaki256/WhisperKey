@@ -35,20 +35,22 @@
 
 本ソフトウェアの実行ファイル版(インストーラー形式)は BOOTH にて販売しています。
 
-- **BOOTH ショップページ**: 
+- **[BOOTH ショップページ]**: (https://asaimo-eos.booth.pm/)
 
-- **CPU版**: [(https://asaimo-eos.booth.pm/items/7284686)]
+- **[CPU版]**: (https://asaimo-eos.booth.pm/items/7284686)
     2,300円
 
-- **GPU版**: [https://asaimo-eos.booth.pm/items/8256368]
+- **[GPU版]**: (https://asaimo-eos.booth.pm/items/8256368)
     2,800円
-
 
 購入者は BOOTH のマイライブラリから最新版を無償でダウンロードできます。
 
-ソフトの概要・使い方を YouTube にて公開しています:
+noteにて紹介記事を公開しています:
+- **[note紹介記事]**: 
 
-- **ソフトの概要・使い方(YouTube)**: [(https://youtu.be/xYWT7ytiTmY)]
+ソフトの概要・使い方を YouTube にて公開しています: (https://note.com/lucky_minnow8803/n/ne6bed7272cff)
+
+- **[ソフトの概要・使い方(YouTube)]**: (https://youtu.be/xYWT7ytiTmY)
 
 ---
 
