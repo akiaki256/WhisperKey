@@ -46,9 +46,9 @@
 購入者は BOOTH のマイライブラリから最新版を無償でダウンロードできます。
 
 noteにて紹介記事を公開しています:
-- **[note紹介記事]**: 
+- **[note紹介記事]**: (https://note.com/lucky_minnow8803/n/ne6bed7272cff)
 
-ソフトの概要・使い方を YouTube にて公開しています: (https://note.com/lucky_minnow8803/n/ne6bed7272cff)
+ソフトの概要・使い方を YouTube にて公開しています: 
 
 - **[ソフトの概要・使い方(YouTube)]**: (https://youtu.be/xYWT7ytiTmY)
 
