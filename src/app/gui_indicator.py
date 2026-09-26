@@ -30,20 +30,12 @@ class IndicatorWindow:
         ## コールバック登録
         state_manager.on_state_change = self.update_indicator
 
-        ## 定期リセット予約
-        self.root.after(600000, self.reset_shortcut_periodically)
-
     def update_indicator(self, status):
         # 色を変える時
         if status == "start":
             self.root.deiconify()
         elif status == "stop":
             self.root.withdraw()
-
-    def reset_shortcut_periodically(self):
-        state_manager.reset_shortcut()
-        print("reset shortcut_key...")
-        self.root.after(600000, self.reset_shortcut_periodically)  # 600000ms = 10分後に再実行
 
     def run(self):
         self.root.mainloop()
