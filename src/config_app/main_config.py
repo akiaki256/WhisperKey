@@ -257,6 +257,17 @@ class ConfigApp(ctk.CTk):
     
     def _restart_main_process(self):
         """restart.bat を非表示で起動"""
+        if not getattr(sys, "frozen", False):
+            # 開発中の本体は python で動いているため、restart.bat(WhisperKey.exe を再起動する)は使えない
+            CTkMessagebox(
+                master=self,
+                title="保存しました",
+                message="設定を保存しました。\n開発中は自動で再起動しないため、本体を手動で再起動してください。",
+                icon="info",
+                option_1="OK",
+            )
+            return
+
         if not os.path.exists(C.RESTART_BAT_PATH):
             CTkMessagebox(
                 master=self,
