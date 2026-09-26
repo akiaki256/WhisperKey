@@ -1,62 +1,31 @@
 """
 定数定義モジュール
 各モジュールから参照される設定値の集約
+
+設定値の範囲・選択肢・初期値は common/config_store.py が持つ。
+ここでは画面側で使う名前で参照できるようにしているだけ。
 """
 
 import paths
 
 # =====================================================
-# 音量閾値
+# 設定値の範囲・選択肢(config_store から)
 # =====================================================
-VOLUME_THRESHOLD_MIN = 100
-VOLUME_THRESHOLD_MAX = 10000
-
-# =====================================================
-# 無音時間(秒)
-# =====================================================
-SILENCE_DURATION_MIN = 0.3
-SILENCE_DURATION_MAX = 5.0
-SILENCE_DURATION_STEP = 0.1
-
-# =====================================================
-# サンプルレート(MME固定)
-# =====================================================
-SAMPLE_RATE = 16000
-
-# =====================================================
-# 既定デバイス表示名
-# =====================================================
-DEFAULT_DEVICE_LABEL = "既定のデバイスに自動接続"
-
-# =====================================================
-# モデルサイズ選択肢
-# 形式: [(保存値, 表示ラベル), ...]
-# =====================================================
-MODEL_CHOICES_CPU = [
-    ("tiny", "tiny: 最速・軽量(精度は低め)"),
-    ("base", "base: バランス型(速度と精度の中間)"),
-    ("small", "small: 高精度(処理はやや重い)"),
-]
-
-MODEL_CHOICES_GPU = [
-    ("small", "small: 高速・軽量"),
-    ("medium", "medium: バランス型(推奨)"),
-    ("large-v3", "large-v3: 最高精度(処理はやや重い)"),
-]
-
-# 各editionのデフォルト(範囲外の値が来た時のフォールバック)
-MODEL_DEFAULT_CPU = "base"
-MODEL_DEFAULT_GPU = "medium"
-
-# =====================================================
-# 言語選択肢
-# =====================================================
-LANGUAGE_CHOICES = [
-    ("ja", "日本語"),
-    ("en", "English"),
-]
-
-LANGUAGE_DEFAULT = "ja"
+from config_store import (
+    VOLUME_THRESHOLD_MIN,
+    VOLUME_THRESHOLD_MAX,
+    SILENCE_DURATION_MIN,
+    SILENCE_DURATION_MAX,
+    SILENCE_DURATION_STEP,
+    SAMPLE_RATE,
+    DEFAULT_DEVICE_LABEL,
+    MODEL_CHOICES_CPU,
+    MODEL_CHOICES_GPU,
+    MODEL_DEFAULT_CPU,
+    MODEL_DEFAULT_GPU,
+    LANGUAGE_CHOICES,
+    LANGUAGE_DEFAULT,
+)
 
 # =====================================================
 # ショートカットキー選択肢

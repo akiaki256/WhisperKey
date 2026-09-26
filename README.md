@@ -87,9 +87,10 @@ WhisperKey/
 │   ├── config_app/             # 設定GUIアプリ(Config.exe)
 │   └── common/                 # 本体と設定GUIの共通モジュール
 │       ├── paths.py            # ファイルの場所の集約
+│       ├── config_store.py     # 設定(config.json)の初期値・範囲・読み書き
 │       └── edition.py          # CPU版 / GPU版の判定
 ├── assets/                     # アイコン等のリソース
-├── package/                    # 配布フォルダに同梱するファイル(初期設定・空の辞書・restart.bat)
+├── package/                    # 配布フォルダに同梱するファイル(空の辞書・restart.bat)
 └── licenses/                   # サードパーティライセンス
 ```
 
