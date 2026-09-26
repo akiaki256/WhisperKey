@@ -3,6 +3,8 @@
 各モジュールから参照される設定値の集約
 """
 
+import paths
+
 # =====================================================
 # 音量閾値
 # =====================================================
@@ -88,10 +90,10 @@ MUTEX_NAME_CONFIG = "Global\\WhisperKey_ConfigGUI"
 # =====================================================
 # ファイルパス
 # =====================================================
-CONFIG_JSON_PATH = "config.json"
-CONVERT_DICT_PATH = "convert_dict.csv"
-COMMAND_DICT_PATH = "command_dict.csv"
-RESTART_BAT_PATH = "restart.bat"
+CONFIG_JSON_PATH = paths.CONFIG_JSON
+CONVERT_DICT_PATH = paths.CONVERT_DICT_CSV
+COMMAND_DICT_PATH = paths.COMMAND_DICT_CSV
+RESTART_BAT_PATH = paths.RESTART_BAT
 
 # =====================================================
 # ウィンドウ

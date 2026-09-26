@@ -6,15 +6,14 @@ import wave
 import numpy as np
 from key_shortcut import MainStateManager
 from error_dialog import show_error
+from paths import TEMP_DIR
 
 # インスタンス作成
 state_manager = MainStateManager()
 
 file_counter = 0  # ファイル名用のカウンター
 
-this_file = os.path.abspath(__file__)
-project_root = os.path.dirname(this_file)
-temp_dir = os.path.join(project_root, "temp")  # tempフォルダのパス
+temp_dir = TEMP_DIR  # tempフォルダのパス
 
 # tempフォルダがなければ作成
 if not os.path.exists(temp_dir):

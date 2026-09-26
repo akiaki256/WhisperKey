@@ -5,6 +5,10 @@ WhisperKey設定GUI エントリポイント
 
 import sys
 import os
+
+# src/common を import できるようにする(exe化後は PyInstaller の --paths で同梱済み)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common"))
+
 import subprocess
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox

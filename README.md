@@ -68,25 +68,29 @@ noteにて紹介記事を公開しています:
 
 ```
 WhisperKey/
-├── main.py              # エントリーポイント
-├── audio.py             # 録音処理(別スレッド)
-├── transcribe.py        # Whisperによる文字起こし(別スレッド)
-├── model.py             # Whisperモデルのロード
-├── key_shortcut.py      # グローバルホットキー管理
-├── gui_indicator.py     # 録音中を示すインジケーター
-├── startup_indicator.py # 起動中インジケーター
-├── tray_icon.py         # システムトレイ
-├── command.py           # コマンド実行機能
-├── convert_dict.py      # 辞書変換機能
-├── config.py            # 設定ファイル読込
-├── cleanup.py           # 一時ファイル削除
-├── cuda_check.py        # GPU版の起動時CUDAチェック
-├── edition.py           # edition切り替えスイッチ
-├── error_dialog.py      # エラーダイアログ
-├── config.json          # ユーザー設定
-├── WhisperKey_config/   # 設定GUIアプリ
-├── items/               # アイコン等のリソース
-└── restart.bat          # メイン再起動用
+├── src/
+│   ├── app/                    # 本体(WhisperKey.exe)
+│   │   ├── main.py             # エントリーポイント
+│   │   ├── audio.py            # 録音処理(別スレッド)
+│   │   ├── transcribe.py       # Whisperによる文字起こし(別スレッド)
+│   │   ├── model.py            # Whisperモデルのロード
+│   │   ├── key_shortcut.py     # グローバルホットキー管理
+│   │   ├── gui_indicator.py    # 録音中を示すインジケーター
+│   │   ├── startup_indicator.py# 起動中インジケーター
+│   │   ├── tray_icon.py        # システムトレイ
+│   │   ├── command.py          # コマンド実行機能
+│   │   ├── convert_dict.py     # 辞書変換機能
+│   │   ├── config.py           # 設定ファイル読込
+│   │   ├── cleanup.py          # 一時ファイル削除
+│   │   ├── cuda_check.py       # GPU版の起動時CUDAチェック
+│   │   └── error_dialog.py     # エラーダイアログ
+│   ├── config_app/             # 設定GUIアプリ(Config.exe)
+│   └── common/                 # 本体と設定GUIの共通モジュール
+│       ├── paths.py            # ファイルの場所の集約
+│       └── edition.py          # CPU版 / GPU版の判定
+├── assets/                     # アイコン等のリソース
+├── package/                    # 配布フォルダに同梱するファイル(初期設定・空の辞書・restart.bat)
+└── licenses/                   # サードパーティライセンス
 ```
 
 ---

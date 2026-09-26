@@ -2,6 +2,7 @@ import json
 import sys
 
 from error_dialog import show_error
+from paths import CONFIG_JSON
 
 
 # DEFAULT_SETTING={
@@ -14,7 +15,7 @@ from error_dialog import show_error
 
 def load_config():  # config.jsonの読み込み
     try:
-        with open('config.json', 'r', encoding='utf-8') as config:
+        with open(CONFIG_JSON, 'r', encoding='utf-8') as config:
             print("ユーザー設定の読込：完了")
             return json.load(config)
         
