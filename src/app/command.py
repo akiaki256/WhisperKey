@@ -3,11 +3,12 @@ import webbrowser
 import os
 
 from error_dialog import show_error
+from paths import COMMAND_DICT_CSV
 
 # CSVファイルから辞書を作成する
 def load_command_dict():
     try:
-        with open('command_dict.csv', encoding='UTF-8') as f:
+        with open(COMMAND_DICT_CSV, encoding='UTF-8') as f:
             reader = csv.DictReader(f)
             return {row['keyword']: {'tag': row['tag'], 'path': row['path']} for row in reader}
         

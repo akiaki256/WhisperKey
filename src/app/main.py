@@ -1,6 +1,9 @@
 import os
 import sys
 
+# src/common を import できるようにする(exe化後は PyInstaller の --paths で同梱済み)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common"))
+
 # ========================================================
 # 起動中インジケーター表示(重いimportより前、最優先)
 # ========================================================

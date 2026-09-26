@@ -3,7 +3,7 @@
 仕様:
 - 右クリックメニュー: 「設定を開く」「再起動」「終了」の3項目
 - ツールチップ: "WhisperKey"
-- アイコン: items/stray_icon.png
+- アイコン: assets/stray_icon.png
 - 「再起動」は restart.bat を起動してプロセス再起動
 - 「終了」は os._exit(0) で即終了
 """
@@ -15,30 +15,11 @@ import threading
 import pystray
 from PIL import Image
 
-
-def _get_resource_path(relative_path):
-    """
-    リソースファイルのパスを取得(frozen/開発両対応)。
-    exe化後は _MEIPASS から、開発中はカレントディレクトリから探す。
-    """
-    if getattr(sys, "frozen", False):
-        # PyInstallerで展開された一時ディレクトリ
-        base_path = sys._MEIPASS
-    else:
-        # 開発中: カレントディレクトリ基準
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
+import paths
 
 
-# アイコンファイルパス(frozen対応で解決)
-_ICON_PATH = _get_resource_path(os.path.join("items", "stray_icon.png"))
-
-# 設定exeのファイル名 / 開発中の設定スクリプトパス
-_CONFIG_EXE_NAME = "Config.exe"
-_CONFIG_SCRIPT_PATH = os.path.join("WhisperKey_config", "main_config.py")
-
-# 再起動用バッチファイル (Config.exe とも共有)
-_RESTART_BAT_NAME = "restart.bat"
+# アイコンファイルパス
+_ICON_PATH = paths.asset("stray_icon.png")
 
 
 def _open_config(icon, item):
@@ -49,18 +30,15 @@ def _open_config(icon, item):
     try:
         if getattr(sys, "frozen", False):
             # exe化後: 設定exeを起動
-            # exeと同じディレクトリから相対パスで起動
-            exe_dir = os.path.dirname(sys.executable)
-            config_exe_path = os.path.join(exe_dir, _CONFIG_EXE_NAME)
             subprocess.Popen(
-                [config_exe_path],
+                [paths.CONFIG_EXE],
                 creationflags=creation_flags,
                 close_fds=True,
             )
         else:
             # 開発中: pythonで設定スクリプトを起動
             subprocess.Popen(
-                [sys.executable, _CONFIG_SCRIPT_PATH],
+                [sys.executable, paths.CONFIG_SCRIPT],
                 creationflags=creation_flags,
                 close_fds=True,
             )
@@ -85,12 +63,10 @@ def _restart(icon, item):
         return
     
     try:
-        exe_dir = os.path.dirname(sys.executable)
-        bat_path = os.path.join(exe_dir, _RESTART_BAT_NAME)
         subprocess.Popen(
-            [bat_path],
+            [paths.RESTART_BAT],
             creationflags=subprocess.CREATE_NO_WINDOW,
-            cwd=exe_dir,
+            cwd=paths.APP_DIR,
             close_fds=True,
         )
         # restart.bat 側の taskkill で自プロセスは終了するため、

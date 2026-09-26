@@ -1,11 +1,12 @@
 import csv
 
 from error_dialog import show_error
+from paths import CONVERT_DICT_CSV
 
 # CSVファイルから辞書を作成する
 def load_convert_dict():
     try:
-        with open('convert_dict.csv', encoding='UTF-8') as f:
+        with open(CONVERT_DICT_CSV, encoding='UTF-8') as f:
             reader = csv.DictReader(f)
             return {row['before']: row['after'] for row in reader}
     except FileNotFoundError as e:

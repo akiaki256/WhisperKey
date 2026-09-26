@@ -1,3 +1,6 @@
+# このPCだけで使うもの(開発用の設定・辞書・モデル、ビルド作業場所、配布物)
+_local/
+
 # 仮想環境
 .venv/
 
@@ -5,41 +8,19 @@
 __pycache__/
 *.pyc
 
-# Whisperモデル(容量大)
-models/
-
-# 一時ファイル(録音wav)
-temp/
+# ビルド時に build.bat が生成する edition 指定ファイル
+src/common/_edition_build.py
 
 # VSCode設定
 .vscode/
 
-# ユーザー辞書(個人内容を含むため除外)
-convert_dict.csv
-command_dict.csv
+# ビルドスクリプトとインストーラー(リポジトリには含めない)
+_scripts/
+_installer/
 
 # Windowsショートカット
 *.lnk
 
-# batファイル
-*.bat
-!restart.bat
-
 # OS生成ファイル
 Thumbs.db
 Desktop.ini
-
-# PyInstaller成果物
-build/
-dist/
-dist_package/
-*.spec
-
-# インストーラーソース(ビルド済み配布物、サイズが大きい)
-WhisperKey_cpu/
-WhisperKey_gpu/
-WhisperKey_cpu_console/
-WhisperKey_gpu_console/
-
-# Inno Setup スクリプトと出力
-installer/

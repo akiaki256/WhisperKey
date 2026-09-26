@@ -1,12 +1,11 @@
 import os
+
+from paths import TEMP_DIR
+
 # tempファイル内にあるファイルを消去
 def cleanup_temp():
-    this_file = os.path.abspath(__file__)
+    temp_dir = TEMP_DIR
 
-    project_root = os.path.dirname(this_file)
-
-    temp_dir = os.path.join(project_root, 'temp')
-    
     if not os.path.exists(temp_dir):
         print("tempファイルが見つかりませんでした")
         return
