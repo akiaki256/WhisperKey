@@ -72,7 +72,7 @@ THEME_DEFAULT = "system"
 
 # インジケーターの表示方法
 INDICATOR_MODE_CHOICES = [
-    ("dot", "丸だけ"),
+    ("dot", "丸"),
     ("panel", "操作パネル"),
     ("hidden", "表示しない"),
 ]

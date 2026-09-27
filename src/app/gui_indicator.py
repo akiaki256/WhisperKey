@@ -2,7 +2,9 @@
 インジケーター(常に最前面の小さな窓)
 
 表示方法(config の indicator_mode。0.1 秒ごとに見に行き、変わったら作り直す):
-- dot(丸だけ): 文字起こし中は黄色(録音のオン/オフに関わらず)、録音オンは緑、オフは消える
+- dot(丸): いつも出ている。暗い丸の中にマイクのアイコン。クリックしても何も操作しない(つまんで動かすだけ)
+    マイクの色: オフは灰色、録音中は緑、文字起こし中は黄色(操作パネルの録音ボタンと同じ)
+    丸の枠: 通常は白、プッシュトゥトークのときは水色(操作パネルのプッシュトゥトークがオンのときの色)
 - panel(操作パネル): いつも出ている。左から「つまむところ・録音・取り消し・プッシュトゥトーク」
     録音ボタン: 色で状態を見せる(オフは灰色、録音中は緑、文字起こし中は黄色)
                 切り替えモードでは押すたびにオン/オフ。プッシュトゥトークでは押している間だけ録音
@@ -16,6 +18,7 @@
 - 押してもフォーカスを奪わない(WS_EX_NOACTIVATE)。入力したいアプリにフォーカスが残るので、
   貼り付けの行き先がこの窓になってしまうことがない
 - 丸のときは窓の背景の黒(#000000)を透明にして、丸の周りを抜く
+  丸は Pillow で4倍の大きさで描いてから縮めた画像(ふちがなめらかになる)。丸の中に真っ黒は使わない
 - パネルのときは透明をやめて、Windows 11 の DWM に角丸と白い枠を描いてもらう
   (透明にする設定があると角丸と枠が効かないため、表示方法ごとに切り替える)
 
@@ -28,6 +31,8 @@ from ctypes import wintypes
 import threading
 import tkinter as tk
 
+from PIL import Image, ImageDraw, ImageTk
+
 import config
 import config_store
 import undo_input
@@ -37,10 +42,14 @@ state_manager = MainStateManager()
 
 POLL_MS = 100
 
-# 丸だけ
+# 状態の色(丸のマイクと、操作パネルの録音ボタンで共通)
 GREEN = "lime"
 YELLOW = "yellow"
-SIZE = 30
+
+# 丸
+SIZE = 36          # 直径(ピクセル)
+DOT_BORDER = 2     # 枠の太さ(ピクセル)
+DOT_ICON_FONT = ("Segoe Fluent Icons", 13)
 
 # 操作パネル(どのアプリの上でも見分けやすいよう、暗い色で固定)
 PANEL_BG = "#202020"
@@ -81,6 +90,19 @@ def _dwm_set(hwnd, attribute, value):
     """窓の見た目を DWM にお願いする。Windows 10 では効かないが、失敗しても動作には困らない"""
     v = ctypes.c_uint(value)
     _dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), attribute, ctypes.byref(v), ctypes.sizeof(v))
+
+
+def _circle_image(border_color):
+    """丸の画像。4倍の大きさで描いてから縮めて、ふちをなめらかにする
+    外側を枠の色で塗り、内側をパネルと同じ暗い色で塗る。丸の外は黒(窓の透明にする色)"""
+    scale = 4
+    big = SIZE * scale
+    border = DOT_BORDER * scale
+    img = Image.new("RGB", (big, big), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse([0, 0, big - 1, big - 1], fill=border_color)
+    draw.ellipse([border, border, big - 1 - border, big - 1 - border], fill=PANEL_BG)
+    return img.resize((SIZE, SIZE), Image.LANCZOS)
 
 
 def _on_screen(x, y):
@@ -124,17 +146,18 @@ class IndicatorWindow:
     # ---- 中身を作る ----
 
     def build_dot(self):
-        label = tk.Label(
-            self.root,
-            text="●",
-            fg=GREEN,
-            bg="black",
-            font=("Arial", 40),
-            cursor="fleur",  # つまめることがわかるカーソル
-            )
-        self.bind_drag(label)
-        self.dot_label = label
-        return label
+        canvas = tk.Canvas(self.root, width=SIZE, height=SIZE, bg="black", highlightthickness=0,
+                           cursor="fleur")  # つまめることがわかるカーソル
+        # 枠が白いものと水色のもの。プッシュトゥトークかどうかで入れ替える(tk が捨てないよう持っておく)
+        self.dot_images = {
+            False: ImageTk.PhotoImage(_circle_image("#ffffff"), master=self.root),
+            True: ImageTk.PhotoImage(_circle_image(ACCENT), master=self.root),
+        }
+        self.dot_circle = canvas.create_image(0, 0, anchor="nw", image=self.dot_images[False])
+        self.dot_mic = canvas.create_text(SIZE // 2, SIZE // 2, text=GLYPH_MIC, font=DOT_ICON_FONT, fill=ICON_DIM)
+        self.bind_drag(canvas)  # クリックしても操作はしない。つまんで動かすだけ
+        self.dot_canvas = canvas
+        return canvas
 
     def build_panel(self):
         frame = tk.Frame(self.root, bg=PANEL_BG)  # 枠は DWM が白く描く
@@ -255,9 +278,9 @@ class IndicatorWindow:
         transcribing = state_manager.is_transcribing()
 
         if mode == "dot":
-            show = recording or transcribing
-            if show:
-                self.dot_label.config(fg=YELLOW if transcribing else GREEN)
+            show = True
+            self.dot_canvas.itemconfigure(self.dot_mic, fill=YELLOW if transcribing else GREEN if recording else ICON_DIM)
+            self.dot_canvas.itemconfigure(self.dot_circle, image=self.dot_images[config.get("push_to_talk")])
         elif mode == "panel":
             show = True
             self.mic_button.config(fg=YELLOW if transcribing else GREEN if recording else ICON_DIM)
