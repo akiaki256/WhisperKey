@@ -72,6 +72,19 @@ function fillSelect(selectEl, choices, current) {
   }
 }
 
+// オン/オフのスイッチを保存につなぐ。横に「オン」「オフ」の文字を出す
+function bindToggle(toggle, label, key, current) {
+  const show = (enabled) => {
+    toggle.checked = enabled;
+    label.textContent = enabled ? "オン" : "オフ";
+  };
+  show(current);
+  toggle.addEventListener("change", async () => {
+    const value = await saveSetting(key, toggle.checked);
+    if (value !== null) show(value);
+  });
+}
+
 // 効果音の選択肢。選んでいた wav が消えていたら「見つかりません」を付けて残す(勝手に変えない)
 function soundChoices(names, current) {
   const choices = [["", "なし"], ...names.map((name) => [name, name.replace(/\.wav$/i, "")])];
@@ -172,6 +185,8 @@ async function loadSettings() {
     const key = select.dataset.key;
     bindSelect(select, key, soundChoices(s.sounds, s.values[key]), s.values[key]);
   }
+  bindToggle(document.getElementById("sound-padding"), document.getElementById("sound-padding-label"),
+    "sound_padding", s.values.sound_padding);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
 }
 
