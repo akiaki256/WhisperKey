@@ -42,10 +42,7 @@ MAIN_KEYS = (
 # =====================================================
 # コマンド種類
 # =====================================================
-COMMAND_TYPES = [
-    ("url", "URLを開く"),
-    ("file", "ファイルを開く"),
-]
+from config_store import COMMAND_TYPES  # 本体と共通(common/config_store.py)
 
 # tag → 表示名 の逆引き
 COMMAND_TAG_TO_LABEL = {tag: label for tag, label in COMMAND_TYPES}

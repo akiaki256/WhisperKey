@@ -18,7 +18,8 @@
     <nav>
       <button data-tab="shortcuts"><span class="icon">&#xE765;</span>ショートカット</button>
       <button data-tab="history"><span class="icon">&#xE81C;</span>入力履歴</button>
-      <button data-tab="dict"><span class="icon">&#xE82D;</span>辞書</button>
+      <button data-tab="dict"><span class="icon">&#xE82D;</span>音声辞書</button>
+      <button data-tab="command"><span class="icon">&#xE768;</span>音声実行</button>
       <button data-tab="model"><span class="icon">&#xE950;</span>モデル</button>
       <button data-tab="settings"><span class="icon">&#xE713;</span>設定</button>
     </nav>
@@ -74,9 +75,28 @@
         <div class="card"><div class="card-text"><div class="card-desc">入力履歴(これから)</div></div></div>
       </section>
 
+      <!-- 音声辞書。一つの項目 = 変換後ひとつと、変換前いくつか(多対一)。動きは dict.js -->
       <section id="tab-dict">
-        <h1>辞書</h1>
-        <div class="card"><div class="card-text"><div class="card-desc">辞書(これから)</div></div></div>
+        <h1>音声辞書</h1>
+        <p id="dict-error" class="infobar error" hidden></p>
+        <div class="section-head">
+          <p class="section-desc">聞き取った言葉を、入力する前に置き換えます。変換前は、聞き間違いやすい言い方をいくつでも登録できます</p>
+          <button id="btn-add-dict" class="accent"><span class="icon">&#xE710;</span> 追加</button>
+        </div>
+        <!-- dict.js が項目の数だけカードを作る -->
+        <div id="dict-list"></div>
+      </section>
+
+      <!-- 音声実行。話した言葉がキーワードと一致したら、入力する代わりに開く。動きは command.js -->
+      <section id="tab-command">
+        <h1>音声実行</h1>
+        <p id="command-error" class="infobar error" hidden></p>
+        <div class="section-head">
+          <p class="section-desc">話した言葉がキーワードと完全に一致したとき、入力する代わりに URL やファイルを開きます。判定は音声辞書で置き換えたあとの言葉で行うので、言い方の揺れは音声辞書にまとめられます</p>
+          <button id="btn-add-command" class="accent"><span class="icon">&#xE710;</span> 追加</button>
+        </div>
+        <!-- command.js がコマンドの数だけカードを作る -->
+        <div id="command-list"></div>
       </section>
 
       <!-- 声をどう聞き取って言葉にするか(言語・モデル)。保存のしくみは設定タブと同じ(settings.js) -->
@@ -148,14 +168,6 @@
           <div class="card-control"><select id="theme-select"></select></div>
         </div>
 
-        <h2>移行中</h2>
-        <div class="card">
-          <div class="card-text">
-            <div class="card-title">辞書とコマンド</div>
-            <div class="card-desc">まだ今までの設定画面で設定します</div>
-          </div>
-          <div class="card-control"><button id="btn-legacy-config">今の設定画面を開く</button></div>
-        </div>
       </section>
     </main>
   </div>
@@ -163,5 +175,7 @@
   <script src="app.js"></script>
   <script src="settings.js"></script>
   <script src="settings_shortcut.js"></script>
+  <script src="dict.js"></script>
+  <script src="command.js"></script>
 </body>
 </html>

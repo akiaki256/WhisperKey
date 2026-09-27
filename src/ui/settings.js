@@ -178,9 +178,5 @@ document.getElementById("btn-restart").addEventListener("click", () => {
   window.pywebview.api.restart();
 });
 
-document.getElementById("btn-legacy-config").addEventListener("click", () => {
-  window.pywebview.api.open_legacy_config();
-});
-
 // pywebview の準備ができてから Python を呼ぶ
 window.addEventListener("pywebviewready", loadSettings);

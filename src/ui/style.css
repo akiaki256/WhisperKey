@@ -256,6 +256,119 @@ h2 {
   font-size: 12px;
 }
 
+/* 説明文と、右端のボタンを横に並べる */
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.section-head .section-desc {
+  flex: 1;
+  margin: 0;
+}
+
+.section-head button .icon {
+  font-size: 12px;
+}
+
+/* ---------- 左 → 右 のカード(音声辞書・音声実行) ---------- */
+
+/* 左(変換前・キーワード)、矢印、右(変換後・開くもの)、右端に消すボタン */
+.pair-card {
+  align-items: flex-start;
+}
+
+.pair-left,
+.pair-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* 入れ物の枠を消して、中の入力欄を .pair-left の縦並びにそのまま並べる */
+.dict-before-rows {
+  display: contents;
+}
+
+/* 入力欄と、その右のボタンを横に並べる(変換前と ×、開くものと「参照」) */
+.dict-before-row,
+.field-row {
+  display: flex;
+  gap: 4px;
+}
+
+.pair-card select {
+  width: 100%;
+  min-width: 0;
+}
+
+.pair-card input[type="text"] {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--control-stroke);
+  border-radius: 4px;
+  background: var(--control);
+}
+
+/* 右の列の中で縦に並ぶ入力欄は、flex: 1 だと高さが縮む。高さは固定のまま */
+.pair-left > input[type="text"],
+.pair-right > input[type="text"] {
+  flex: none;
+}
+
+/* × とごみ箱は枠なしにして、入力欄より控えめに見せる */
+.pair-card .icon-button {
+  flex-shrink: 0;
+  border-color: transparent;
+  background: none;
+}
+
+.pair-card .icon-button:hover {
+  background: var(--subtle-hover);
+}
+
+.pair-card input[type="text"]:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);   /* Windows の入力欄と同じ、下線で選択中を示す */
+}
+
+.pair-arrow {
+  margin-top: 30px;   /* 見出しの下、最初の入力欄の高さにそろえる */
+  color: var(--text-secondary);
+}
+
+.pair-delete {
+  margin-top: 20px;
+}
+
+/* 文字だけの控えめなボタン(「+ 変換前を追加」) */
+button.subtle {
+  align-self: flex-start;
+  border-color: transparent;
+  background: none;
+  color: var(--accent);
+}
+
+button.subtle:hover {
+  background: var(--subtle-hover);
+}
+
+button.subtle .icon {
+  font-size: 12px;
+}
+
 /* 押すと広がるカード(<details>)。開く・閉じるはブラウザに任せる */
 .card.expander {
   display: block;

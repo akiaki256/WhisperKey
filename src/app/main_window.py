@@ -17,8 +17,10 @@ import winreg
 import webview
 
 import audio_devices
+import command
 import config
 import config_store
+import convert_dict
 import key_shortcut
 import paths
 import tray_icon
@@ -131,6 +133,42 @@ class Api:
 
     def restart(self):
         tray_icon.restart_app()
+
+    # ---- 音声実行 ----
+
+    def get_commands(self):
+        return {"rows": command.get_rows(), "types": config_store.COMMAND_TYPES}
+
+    def save_commands(self, rows):
+        """一覧をまるごと保存する"""
+        try:
+            command.save_rows(rows)
+        except ValueError as e:
+            return {"error": str(e)}
+        except OSError as e:
+            return {"error": f"音声実行の保存に失敗しました: {e}"}
+        return {}
+
+    def choose_file(self):
+        """「参照」ボタン。選ばれたファイルのパス(やめたら None)"""
+        paths_chosen = _window.create_file_dialog(webview.FileDialog.OPEN)
+        return paths_chosen[0] if paths_chosen else None
+
+    # ---- 音声辞書 ----
+
+    def get_dict(self):
+        """[{"after": 変換後, "befores": [変換前, ...]}, ...]"""
+        return convert_dict.get_groups()
+
+    def save_dict(self, groups):
+        """辞書をまるごと保存する(数十行なので、一項目ずつではなく全体を書き直す)"""
+        try:
+            convert_dict.save_groups(groups)
+        except ValueError as e:
+            return {"error": str(e)}
+        except OSError as e:
+            return {"error": f"辞書の保存に失敗しました: {e}"}
+        return {}
 
     # ---- ショートカットキー(キーを押して決める) ----
     # 始めるときに今のキーの登録を外し(今のキーも画面に届くように)、終わるときに登録し直す

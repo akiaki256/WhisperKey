@@ -66,6 +66,12 @@ THEME_CHOICES = [
 ]
 THEME_DEFAULT = "system"
 
+# 音声実行(command_dict.csv)の種類
+COMMAND_TYPES = [
+    ("url", "URLを開く"),
+    ("file", "ファイルを開く"),
+]
+
 
 class ConfigError(Exception):
     """config.json が読めないときの例外"""

@@ -2,8 +2,8 @@ import os
 import pyperclip
 import keyboard
 import config
-from convert_dict import load_convert_dict, convert_text
-from command import load_command_dict, execute_command
+import convert_dict
+import command
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
@@ -42,24 +42,19 @@ def whisper_function(model, wav_queue):
     wav_queue: 音声ファイルのキュー
     """
 
-    # CSVファイルからユーザー変換辞書を作成する
-    user_convert_dict_status = True
-    command_dict_status = True
-
-    user_convert_dict = load_convert_dict()
-    if user_convert_dict is None:
+    # CSVファイルからユーザー変換辞書とコマンドを作成する
+    # どちらも画面から保存されたらすぐ効くように、毎回 get_current() から使う
+    # (読み込みに失敗したときは空になり、変換・実行されないだけ)
+    if convert_dict.load_convert_dict() is None:
         print("ユーザー変換辞書取得：失敗（辞書変換機能OFF）")
-        user_convert_dict_status = False
     else:
         print("ユーザー変換辞書取得：成功")
-        
-    command_dict = load_command_dict()
-    if command_dict is None:
+
+    if command.load_command_dict() is None:
         print("コマンド辞書取得：失敗（コマンド実行機能OFF）")
-        command_dict_status = False
     else:
-        print("コマンド辞書取得：成功")       
-    
+        print("コマンド辞書取得：成功")
+
 
     while True:
         print("Whisperスレッド：キュー待機中...")
@@ -84,16 +79,11 @@ def whisper_function(model, wav_queue):
             filtered_text = filter_hallucination(text)
 
             ## ユーザー辞書適応
-            if user_convert_dict_status == True:
-                result = convert_text(filtered_text, user_convert_dict)
-            else:
-                result = filtered_text
+            result = convert_dict.convert_text(filtered_text, convert_dict.get_current())
 
             # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
             # 辞書変換後の文字列で判定する(表記揺れを辞書側で吸収できるようにするため)
-            command_executed = False
-            if command_dict_status == True:
-                command_executed = execute_command(result, command_dict)
+            command_executed = command.execute_command(result, command.get_current())
 
             if command_executed:
                 print("コマンドを実行")
