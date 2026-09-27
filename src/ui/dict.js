@@ -113,9 +113,74 @@ async function saveDict() {
   showError(result.error);
 }
 
+// カードを少しのあいだ光らせて、見える位置まで動かす(どのカードのことか伝えるため)
+function flashCard(card) {
+  card.scrollIntoView({ block: "nearest" });
+  card.classList.remove("flash");
+  void card.offsetWidth;   // いったん描き直させて、続けて光らせても毎回アニメーションが始まるようにする
+  card.classList.add("flash");
+}
+
+// 音声辞書タブのお知らせの帯(数秒で消える)
+let dictNoticeTimer = null;
+function showDictNotice(message) {
+  const notice = document.getElementById("dict-notice");
+  notice.textContent = message;
+  notice.hidden = false;
+  clearTimeout(dictNoticeTimer);
+  dictNoticeTimer = setTimeout(() => { notice.hidden = true; }, 5000);
+}
+
+// 変換後が同じカードがほかにあれば、そちらに変換前を移して一枚にまとめる(多対一)
+// 戻り値: まとめたら true
+function mergeSameAfter(card) {
+  const after = card.querySelector(".dict-after-input").value;
+  const target = [...dictList.querySelectorAll(".pair-card")].find(
+    (other) => other !== card && other.querySelector(".dict-after-input").value === after,
+  );
+  if (!target) return false;
+
+  const existing = [...target.querySelectorAll(".dict-before")].map((input) => input.value);
+  const rows = target.querySelector(".dict-before-rows");
+  for (const input of card.querySelectorAll(".dict-before")) {
+    if (input.value !== "" && !existing.includes(input.value)) {
+      rows.append(createBeforeRow(input.value));
+    }
+  }
+  card.remove();
+  updateRemoveButtons(target);
+  flashCard(target);
+  showDictNotice(`「${after}」の項目にまとめました`);
+  return true;
+}
+
+// 入力履歴で選んだ言葉を、変換前に入れた新しいカードにする(history.js から呼ばれる)
+// すでにどこかの変換前にあれば、新しく作らずにそのカードを見せる
+function addDictFromHistory(text) {
+  showTab("dict");
+  const existing = [...dictList.querySelectorAll(".dict-before")].find((input) => input.value === text);
+  if (existing) {
+    const card = existing.closest(".pair-card");
+    flashCard(card);
+    existing.focus();
+    showDictNotice(`「${text}」はすでに登録されています`);
+    return;
+  }
+
+  const card = createDictCard({ after: "", befores: [text] });
+  dictList.prepend(card);
+  flashCard(card);
+  card.querySelector(".dict-after-input").focus();   // あとは正しい言葉を打つだけ
+}
+
 // どの入力欄でも、離れたとき(change)に保存する
+// 変換後を変えたときは、同じ変換後のカードがあればまとめてから保存する
 dictList.addEventListener("change", (e) => {
-  if (e.target.matches("input")) saveDict();
+  if (!e.target.matches("input")) return;
+  if (e.target.matches(".dict-after-input")) {
+    mergeSameAfter(e.target.closest(".pair-card"));
+  }
+  saveDict();
 });
 
 // 新しい項目は一番上に足す(追加してすぐ打ち込めるように)

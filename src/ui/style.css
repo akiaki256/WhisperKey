@@ -624,3 +624,32 @@ button:disabled {
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* ---------- 入力履歴 → 音声辞書 ---------- */
+
+/* なぞって選んだところの下に浮かぶ「辞書に追加」ボタン */
+.selection-flyout {
+  position: fixed;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.selection-flyout .icon {
+  font-size: 12px;
+}
+
+/* どのカードのことか伝えるため、少しのあいだ光らせる */
+.card.flash {
+  animation: card-flash 1.5s ease-out;
+}
+
+@keyframes card-flash {
+  0%, 30% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  100% {
+    border-color: var(--card-stroke);
+    box-shadow: none;
+  }
+}

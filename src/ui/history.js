@@ -113,6 +113,56 @@ clearHistoryButton.addEventListener("click", async () => {
   showError(result.error);
 });
 
+// ---- なぞって選んだ言葉を、音声辞書に追加する ----
+// 選んだところのすぐ下に「辞書に追加」ボタンを浮かべる。押すと音声辞書タブで新しいカードになる(dict.js)
+
+const dictFlyout = document.createElement("button");
+dictFlyout.className = "accent selection-flyout";
+dictFlyout.innerHTML = `<span class="icon">&#xE710;</span> 辞書に追加`;
+dictFlyout.hidden = true;
+document.body.append(dictFlyout);
+
+// 一つの文章の中で選ばれていれば、その文字(前後の空白は除く)。そうでなければ null
+function selectedHistoryText() {
+  const selection = window.getSelection();
+  if (selection.isCollapsed) return null;
+  const start = selection.anchorNode?.parentElement?.closest(".history-text");
+  const end = selection.focusNode?.parentElement?.closest(".history-text");
+  if (!start || start !== end) return null;   // 二つの履歴にまたがる選び方は受け付けない
+  const text = selection.toString().trim();
+  return text || null;
+}
+
+function updateDictFlyout() {
+  const text = selectedHistoryText();
+  if (!text) {
+    dictFlyout.hidden = true;
+    return;
+  }
+  const rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+  dictFlyout.style.left = `${rect.left}px`;
+  dictFlyout.style.top = `${rect.bottom + 6}px`;
+  dictFlyout.hidden = false;
+}
+
+// なぞり終わったとき(選択が確定してから見るため、一拍おく)
+historyList.addEventListener("mouseup", () => setTimeout(updateDictFlyout, 0));
+
+// ボタンを押した瞬間に選択が外れないようにする
+dictFlyout.addEventListener("mousedown", (e) => e.preventDefault());
+dictFlyout.addEventListener("click", () => {
+  const text = selectedHistoryText();
+  dictFlyout.hidden = true;
+  window.getSelection().removeAllRanges();
+  if (text) addDictFromHistory(text);
+});
+
+// ほかの場所を押したり、スクロールしたりしたら隠す
+document.addEventListener("mousedown", (e) => {
+  if (e.target !== dictFlyout && !dictFlyout.contains(e.target)) dictFlyout.hidden = true;
+});
+document.querySelector("main").addEventListener("scroll", () => { dictFlyout.hidden = true; });
+
 async function loadHistory() {
   const s = await window.pywebview.api.get_settings();
   showHistoryToggle(s.values.history_enabled);
