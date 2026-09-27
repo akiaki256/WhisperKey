@@ -171,6 +171,9 @@ async function loadSettings() {
   bindToggle(document.getElementById("clipboard-private"), document.getElementById("clipboard-private-label"),
     "clipboard_private", s.values.clipboard_private);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
+
+  // 選ばれているモデルが手元に無ければ、モデルタブを開いて知らせる(ショートカットのエラーより優先)
+  showModelNotice(s.model_state, s.values.model_size);
 }
 
 // マイクの一覧を取り直して、current を選んだ状態にする

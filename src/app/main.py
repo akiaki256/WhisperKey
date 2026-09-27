@@ -95,7 +95,8 @@ from queue import Queue
 
 from config import load_config
 from cleanup import cleanup_temp
-from model import load_model
+import model
+import model_store
 from key_shortcut import MainStateManager
 from audio import recording_function
 from transcribe import whisper_function
@@ -118,11 +119,23 @@ settings = load_config()  # config.jsonを読み込む
 history.load()  # 入力履歴(history.json)を読み込む
 
 ## faster-Whisperのモデル読み込み
-model = load_model(settings["model_size"])
+## 選ばれているモデルが手元に無ければ読み込まずに起動する(窓がモデルタブを開いて、ダウンロードしてもらう)
+## 手元にあるのに読めない(壊れている、CUDA が無いなど)ときは、エラーを出して終了する
+model_missing = model_store.local_path(settings["model_size"]) is None
+if model_missing:
+    print(f"モデル '{settings['model_size']}' が手元にありません。ダウンロードを待ちます")
+else:
+    try:
+        model.set_model(model.load_model(settings["model_size"]), settings["model_size"])
+    except model.ModelLoadError as e:
+        startup.close()
+        model.exit_with_load_error(e)
 
 ## ショートカットキーの登録(音声入力・入力モード切り替え・直前の入力を取り消す)
 ## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)
 state_manager.set_handler("undo", undo_input.undo)
+state_manager.can_start = model.is_ready
+state_manager.on_start_blocked = lambda: main_window.show("model")  # モデルタブでダウンロードしてもらう
 shortcut_errors = state_manager.start_listener({
     "toggle": settings["shortcut_key"],
     "undo": settings["undo_key"],
@@ -158,7 +171,7 @@ threading.Thread(
 ## 文字起こしスレッド開始
 threading.Thread(
     target=whisper_function,
-    args=(model, wav_queue)
+    args=(wav_queue,)
 ).start()
 
 ## システムトレイを別スレッドで起動
@@ -166,7 +179,6 @@ tray_icon.start_tray_in_background()
 
 ## 本体の窓を表示(閉じられるまでここで待つ)
 main_window.create(
-    loaded_model=settings["model_size"],
     shortcut_errors={action: error[0] for action, error in shortcut_errors.items()},
 )
 main_window.start()

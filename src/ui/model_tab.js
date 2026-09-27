@@ -77,7 +77,46 @@ function buildModelList(container, models, current) {
   }
 }
 
-// ---- Python から届く知らせ(main_window.py の _download_in_background) ----
+// ---- 選ばれているモデルが手元に無いとき・読み込み中・読み込めたとき ----
+
+let modelNoticeTimer = null;
+
+function setModelNotice(message, autoHide = false) {
+  const notice = document.getElementById("model-notice");
+  clearTimeout(modelNoticeTimer);
+  notice.textContent = message ?? "";
+  notice.hidden = !message;
+  if (message && autoHide) {
+    modelNoticeTimer = setTimeout(() => { notice.hidden = true; }, 6000);
+  }
+}
+
+// 画面を開いたとき(settings.js の loadSettings から)。state は "ready" / "missing" / "loading"
+function showModelNotice(state, name) {
+  if (state === "ready") return;
+  showTab("model");
+  if (state === "loading") {
+    setModelNotice("モデルを読み込んでいます…");
+  } else {
+    setModelNotice(`選ばれているモデル(${name})がまだありません。ダウンロードすると、音声入力が使えるようになります`);
+  }
+}
+
+// ---- Python から届く知らせ(main_window.py の _download_in_background / _load_if_needed) ----
+
+function onModelLoading(name) {
+  setModelNotice(`モデル(${name})を読み込んでいます…`);
+}
+
+function onModelReady(name) {
+  setModelNotice(`準備ができました。音声入力が使えます(${name})`, true);
+}
+
+function onModelLoadFailed({ error }) {
+  setModelNotice(null);
+  showModelError(error);
+}
+
 
 function onModelProgress({ name, progress }) {
   const card = modelCard(name);

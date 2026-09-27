@@ -4,6 +4,7 @@ import convert_dict
 import command
 import history
 import undo_input
+import model
 import paste
 from key_shortcut import MainStateManager
 
@@ -35,11 +36,12 @@ def filter_hallucination(text):
     return text
 
 #faster-whisperに送信してテキスト化して貼り付け
-def whisper_function(model, wav_queue):
+def whisper_function(wav_queue):
     """
     言語は、画面で変えたらすぐ効くように、毎回 config から読む
 
-    model: WhisperModelのインスタンス
+    モデルは毎回 model.get_model() から受け取る(選ばれているモデルが手元に無いまま起動したときは、
+    ダウンロードして読み込まれるまで待つ)
     wav_queue: 音声ファイルのキュー
     """
 
@@ -63,7 +65,7 @@ def whisper_function(model, wav_queue):
         try:
             print(f"処理開始: {filepath}")
 
-            segments, info = model.transcribe(filepath,
+            segments, info = model.get_model().transcribe(filepath,
                                                 language=config.get("language"),
                                                 beam_size=1,           # デフォルト5→1で高速化
                                                 best_of=1,            # デフォルト5→1で高速化  

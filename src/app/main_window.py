@@ -25,6 +25,7 @@ import config_store
 import convert_dict
 import history
 import key_shortcut
+import model
 import model_store
 import paths
 import sounds
@@ -34,7 +35,7 @@ _state_manager = key_shortcut.MainStateManager()
 
 
 _window = None
-_loaded_model = None  # 起動時に読み込んだモデル。設定と違えば再起動が必要
+_model_loading = False  # 起動したあとにモデルを読み込んでいる途中か(ダウンロードが終わったあとなど)
 _shortcut_errors = {}  # 起動時にショートカットキーを登録できなかった {役割: 理由("taken" など)}。登録できたら消す
 _downloading = None    # ダウンロード中のモデルの名前(一度に一つだけ)
 
@@ -69,12 +70,42 @@ def _model_list():
     ]
 
 
+def _restart_needed(values):
+    """モデルを切り替えたので再起動が必要か(まだ何も読み込まれていないときは、再起動しなくても読み込む)"""
+    return model.is_ready() and values["model_size"] != model.loaded_name()
+
+
+def _load_if_needed():
+    """まだモデルが読み込まれておらず、選ばれているモデルが手元にあれば、別のスレッドで読み込む
+    (選ばれているモデルが手元に無いまま起動し、あとでダウンロードしたとき・手元にあるモデルを選び直したとき)"""
+    global _model_loading
+    name = config.get("model_size")
+    if model.is_ready() or _model_loading or model_store.local_path(name) is None:
+        return
+    _model_loading = True
+
+    def load():
+        global _model_loading
+        _call_js("onModelLoading", name)
+        try:
+            model.set_model(model.load_model(name), name)
+            _call_js("onModelReady", name)
+        except model.ModelLoadError as e:
+            print(f"モデルの読み込みに失敗: {name}: {e}")
+            _call_js("onModelLoadFailed", {"name": name, "error": f"モデルを読み込めませんでした({e})"})
+        finally:
+            _model_loading = False
+
+    threading.Thread(target=load, daemon=True).start()
+
+
 def _download_in_background(name):
     """モデルを取りに行く(別のスレッドで)。進み具合と終わったことを画面に知らせる"""
     global _downloading
     try:
         model_store.download(name, on_progress=lambda p: _call_js("onModelProgress", {"name": name, "progress": p}))
         result = {"name": name, "ok": True}
+        _load_if_needed()  # 選ばれているモデルがこれで手元にそろったなら、再起動せずに読み込む
     except Exception as e:
         print(f"モデルのダウンロードに失敗: {name}: {e}")
         result = {"name": name, "ok": False, "error": f"ダウンロードできませんでした。インターネットにつながっているか確かめてください({e})"}
@@ -138,6 +169,8 @@ class Api:
             "shortcuts": {action: values[key] for action, key in SHORTCUT_CONFIG_KEYS.items()},
             "shortcut_errors": _shortcut_errors,
             "shortcut_labels": SHORTCUT_LABELS,
+            # モデルがまだ読み込まれていない(選ばれているモデルが手元に無い)。読み込み中なら "loading"
+            "model_state": "ready" if model.is_ready() else "loading" if _model_loading else "missing",
             "volume": {"min": config_store.VOLUME_THRESHOLD_MIN, "max": config_store.VOLUME_THRESHOLD_MAX},
             "silence": {
                 "min": config_store.SILENCE_DURATION_MIN,
@@ -151,7 +184,7 @@ class Api:
             "sounds": sounds.list_sounds(),
             "history_limits": config_store.HISTORY_LIMIT_CHOICES,
             "mics": self.get_mics(),
-            "restart_needed": values["model_size"] != _loaded_model,
+            "restart_needed": _restart_needed(values),
         }
 
     def get_level(self):
@@ -178,13 +211,15 @@ class Api:
             if key == "push_to_talk":
                 _state_manager.set_push_to_talk(bool(value))  # オンにしたら録音をオフにそろえる処理も一緒に
             values = config.update({key: value})
+            if key == "model_size":
+                _load_if_needed()
             if key == "history_limit":
                 history.trim(values["history_limit"])  # あふれた古い履歴を消す(画面で確認済み)
         except OSError as e:
             return {"error": f"設定の保存に失敗しました: {e}"}
         return {
             "value": values[key],
-            "restart_needed": values["model_size"] != _loaded_model,
+            "restart_needed": _restart_needed(values),
         }
 
     def restart(self):
@@ -312,14 +347,14 @@ def _check_shortcut(action, key_str):
     return None
 
 
-def create(loaded_model, shortcut_errors=None):
+def create(shortcut_errors=None):
     """窓を作る(表示されるのは start() のあと)
+    選ばれているモデルが手元に無いかは、画面が get_settings の model_state で知る(モデルタブを開いて知らせる)
 
     shortcut_errors: 起動時にショートカットキーを登録できなかった役割と理由 {役割: "taken" など}。
     あれば画面はショートカットタブを開いて知らせる
     """
-    global _window, _loaded_model, _shortcut_errors
-    _loaded_model = loaded_model
+    global _window, _shortcut_errors
     _shortcut_errors = dict(shortcut_errors or {})
     config.add_listener(_on_config_changed)
     history.add_listener(_on_history_changed)

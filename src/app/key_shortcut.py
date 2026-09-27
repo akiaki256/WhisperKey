@@ -142,6 +142,10 @@ class MainStateManager():
             # 役割のキーが押されたとき / 離されたときの処理
             cls._instance._handlers = {"toggle": cls._instance.press_toggle, "mode": cls._instance.switch_mode}
             cls._instance._release_handlers = {"toggle": cls._instance.release_toggle}
+            # 録音を始めてよいか(モデルが読み込まれているか)と、始められなかったときに呼ぶ処理
+            # 中身は main.py が入れる(ここで model を読み込むと重くなるため)
+            cls._instance.can_start = lambda: True
+            cls._instance.on_start_blocked = lambda: None
         return cls._instance
 
     def get_state(self):
@@ -159,8 +163,13 @@ class MainStateManager():
         return self._pending > 0
 
     def set_state(self, new_state):
-        """録音のオン("start")/オフ("stop")を変えて、効果音で知らせる。同じなら何もしない"""
+        """録音のオン("start")/オフ("stop")を変えて、効果音で知らせる。同じなら何もしない
+        モデルがまだ読み込まれていなければ、録音を始めない(文字にできないまま録音だけ進まないように)"""
         if new_state == self.state:
+            return
+        if new_state == "start" and not self.can_start():
+            print("聞き取りモード：モデルが読み込まれていないので始めません")
+            self.on_start_blocked()
             return
         self.state = new_state
         if new_state == "start":
