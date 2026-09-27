@@ -36,6 +36,7 @@ CONVERT_DICT_CSV = os.path.join(APP_DIR, "convert_dict.csv")
 COMMAND_DICT_CSV = os.path.join(APP_DIR, "command_dict.csv")
 MODELS_DIR = os.path.join(APP_DIR, "models")
 TEMP_DIR = os.path.join(APP_DIR, "temp")
+HISTORY_JSON = os.path.join(APP_DIR, "history.json")
 
 # 配布フォルダ内の実行ファイル(exe化後のみ使用)
 RESTART_BAT = os.path.join(APP_DIR, "restart.bat")

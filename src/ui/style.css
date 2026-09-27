@@ -24,6 +24,7 @@
   --on-accent: #ffffff;
   --infobar: #dbeaf7;
   --infobar-error: #fde7e9;
+  --infobar-warning: #fff4ce;
 }
 
 /* ダークの色は2か所で使うので、同じ内容を並べている */
@@ -45,6 +46,7 @@
     --on-accent: #000000;
     --infobar: #2c3b47;
     --infobar-error: #442726;
+    --infobar-warning: #433519;
   }
 }
 
@@ -65,6 +67,7 @@
   --on-accent: #000000;
   --infobar: #2c3b47;
   --infobar-error: #442726;
+  --infobar-warning: #433519;
 }
 
 /* ---------- 全体 ---------- */
@@ -536,4 +539,88 @@ button.accent:hover {
 
 .infobar.error {
   background: var(--infobar-error);
+}
+
+.infobar.warning {
+  background: var(--infobar-warning);
+}
+
+.infobar.warning .icon {
+  color: inherit;
+}
+
+/* ---------- スイッチ(Windows のトグルスイッチ) ---------- */
+
+.toggle-label {
+  color: var(--text-secondary);
+}
+
+input.toggle {
+  appearance: none;
+  position: relative;
+  width: 40px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--text-secondary);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* つまみ */
+input.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: left 0.15s;
+}
+
+input.toggle:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+input.toggle:checked::after {
+  left: 23px;
+  background: var(--on-accent);
+}
+
+/* ---------- 入力履歴 ---------- */
+
+.history-item {
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.history-text {
+  white-space: pre-wrap;      /* 改行やスペースをそのまま見せる */
+  overflow-wrap: anywhere;    /* 長い URL などでもカードからはみ出さない */
+  user-select: text;          /* なぞって選べるように(あとで「辞書に追加」に使う) */
+}
+
+.history-time {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.history-item .icon-button {
+  flex-shrink: 0;
+  border-color: transparent;
+  background: none;
+}
+
+.history-item .icon-button:hover {
+  background: var(--subtle-hover);
+}
+
+/* 押せないボタン(履歴が空のときの「消去」など) */
+button:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }

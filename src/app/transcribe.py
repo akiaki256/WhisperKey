@@ -4,6 +4,7 @@ import keyboard
 import config
 import convert_dict
 import command
+import history
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
@@ -92,6 +93,7 @@ def whisper_function(model, wav_queue):
                 pyperclip.copy(result)
                 keyboard.send('ctrl+v')
                 print(f"入力: {result[:30]}...") # 最初の30文字を表示
+                history.add(result)  # 入力した文章だけを残す(音声実行は残さない)
 
             # 処理済みファイルを削除
             os.remove(filepath)

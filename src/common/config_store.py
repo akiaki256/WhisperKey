@@ -67,6 +67,15 @@ THEME_CHOICES = [
 ]
 THEME_DEFAULT = "system"
 
+# 入力履歴の件数
+HISTORY_LIMIT_CHOICES = [
+    (5, "5 件"),
+    (10, "10 件"),
+    (20, "20 件"),
+    (30, "30 件"),
+]
+HISTORY_LIMIT_DEFAULT = 10
+
 # 音声実行(command_dict.csv)の種類
 COMMAND_TYPES = [
     ("url", "URLを開く"),
@@ -99,6 +108,9 @@ def defaults():
         "indicator_x": 5,
         "indicator_y": 20,
         "theme": THEME_DEFAULT,
+        # 入力履歴(history.json)。オフでも今ある履歴には触らない
+        "history_enabled": True,
+        "history_limit": HISTORY_LIMIT_DEFAULT,
     }
 
 
@@ -149,6 +161,10 @@ def _fix_positive_int(v, default):
     return default
 
 
+def _fix_bool(v, default):
+    return v if isinstance(v, bool) else default
+
+
 def _fix_text(v, default):
     return v if isinstance(v, str) and v.strip() else default
 
@@ -171,6 +187,8 @@ def normalize(raw):
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
         "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
+        "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
+        "history_limit": _fix_choice(merged["history_limit"], HISTORY_LIMIT_CHOICES, d["history_limit"]),
     }
 
 

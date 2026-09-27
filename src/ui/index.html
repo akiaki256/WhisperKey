@@ -70,9 +70,53 @@
         </details>
       </section>
 
+      <!-- 入力履歴。残すかどうか・件数・消去と、最近の入力の一覧。動きは history.js -->
       <section id="tab-history">
         <h1>入力履歴</h1>
-        <div class="card"><div class="card-text"><div class="card-desc">入力履歴(これから)</div></div></div>
+        <p id="history-error" class="infobar error" hidden></p>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="history-enabled">入力履歴を残す</label>
+            <div class="card-desc">オンの間、入力した文章を残します。履歴はローカルファイルへ保存されます</div>
+          </div>
+          <div class="card-control">
+            <span id="history-enabled-label" class="toggle-label"></span>
+            <input type="checkbox" id="history-enabled" class="toggle">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="history-limit">残す件数</label>
+            <div class="card-desc">超えた分は、古いものから消えます</div>
+          </div>
+          <div class="card-control"><select id="history-limit"></select></div>
+        </div>
+        <div id="history-limit-confirm" class="infobar warning" hidden>
+          <span class="icon">&#xE7BA;</span>
+          <span class="infobar-text"></span>
+          <button class="accent confirm-ok">消す</button>
+          <button class="confirm-cancel">やめる</button>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">入力履歴の消去</div>
+            <div class="card-desc">残っている履歴をすべて消します</div>
+          </div>
+          <div class="card-control"><button id="btn-clear-history">消去</button></div>
+        </div>
+        <div id="history-clear-confirm" class="infobar warning" hidden>
+          <span class="icon">&#xE7BA;</span>
+          <span class="infobar-text"></span>
+          <button class="accent confirm-ok">消去</button>
+          <button class="confirm-cancel">やめる</button>
+        </div>
+
+        <h2>最近の入力</h2>
+        <!-- history.js が履歴の数だけカードを作る -->
+        <div id="history-list"></div>
       </section>
 
       <!-- 音声辞書。一つの項目 = 変換後ひとつと、変換前いくつか(多対一)。動きは dict.js -->
@@ -177,5 +221,6 @@
   <script src="settings_shortcut.js"></script>
   <script src="dict.js"></script>
   <script src="command.js"></script>
+  <script src="history.js"></script>
 </body>
 </html>

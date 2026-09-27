@@ -94,6 +94,7 @@ from transcribe import whisper_function
 from gui_indicator import IndicatorWindow
 import tray_icon
 import main_window
+import history
 
 
 # ========================================================
@@ -104,6 +105,7 @@ state_manager = MainStateManager()
 cleanup_temp()  # 残っていたtemp_ファイルを消去
 
 settings = load_config()  # config.jsonを読み込む
+history.load()  # 入力履歴(history.json)を読み込む
 
 ## faster-Whisperのモデル読み込み
 model = load_model(settings["model_size"])

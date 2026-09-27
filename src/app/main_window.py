@@ -14,6 +14,7 @@ import os
 import threading
 import winreg
 
+import pyperclip
 import webview
 
 import audio_devices
@@ -21,6 +22,7 @@ import command
 import config
 import config_store
 import convert_dict
+import history
 import key_shortcut
 import paths
 import tray_icon
@@ -33,7 +35,10 @@ _loaded_model = None  # 起動時に読み込んだモデル。設定と違え�
 _shortcut_error = None  # 起動時にショートカットキーを登録できなかった理由("taken" など)。登録できたら None
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
-EDITABLE_KEYS = {"volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme"}
+EDITABLE_KEYS = {
+    "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
+    "history_enabled", "history_limit",
+}
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
 BG_LIGHT = "#F3F3F3"
@@ -48,17 +53,27 @@ def _model_list():
     ]
 
 
-def _on_config_changed(changed):
-    """設定が変わったら画面に知らせる(録音の係がマイクを「既定」に戻したときなど)"""
+def _call_js(function_name, value):
+    """画面の JS の関数を呼ぶ。value は JSON にして渡す"""
     if _window is None:
         return
     # evaluate_js は画面の読み込みが終わるまで待つことがある。
-    # 呼んだ側(録音の係など)を止めないよう、別のスレッドで呼ぶ
+    # 呼んだ側(録音や文字起こしの係など)を止めないよう、別のスレッドで呼ぶ
     threading.Thread(
         target=_window.evaluate_js,
-        args=(f"onSettingsChanged({json.dumps(changed)})",),
+        args=(f"{function_name}({json.dumps(value)})",),
         daemon=True,
     ).start()
+
+
+def _on_config_changed(changed):
+    """設定が変わったら画面に知らせる(録音の係がマイクを「既定」に戻したときなど)"""
+    _call_js("onSettingsChanged", changed)
+
+
+def _on_history_changed(entries):
+    """入力履歴が変わったら画面の一覧を更新する"""
+    _call_js("onHistoryChanged", entries)
 
 
 def _system_is_dark():
@@ -100,6 +115,7 @@ class Api:
             "languages": config_store.LANGUAGE_CHOICES,
             "models": _model_list(),
             "themes": config_store.THEME_CHOICES,
+            "history_limits": config_store.HISTORY_LIMIT_CHOICES,
             "mics": self.get_mics(),
             "restart_needed": values["model_size"] != _loaded_model,
         }
@@ -115,6 +131,8 @@ class Api:
 
         try:
             values = config.update({key: value})
+            if key == "history_limit":
+                history.trim(values["history_limit"])  # あふれた古い履歴を消す(画面で確認済み)
         except OSError as e:
             return {"error": f"設定の保存に失敗しました: {e}"}
         return {
@@ -124,6 +142,22 @@ class Api:
 
     def restart(self):
         tray_icon.restart_app()
+
+    # ---- 入力履歴 ----
+
+    def get_history(self):
+        return history.get()
+
+    def clear_history(self):
+        try:
+            history.clear()
+        except OSError as e:
+            return {"error": f"入力履歴の消去に失敗しました: {e}"}
+        return {}
+
+    def copy_text(self, text):
+        """履歴の文章をクリップボードにコピーする"""
+        pyperclip.copy(text)
 
     # ---- 音声実行 ----
 
@@ -204,6 +238,7 @@ def create(loaded_model, shortcut_error=None):
     _loaded_model = loaded_model
     _shortcut_error = shortcut_error
     config.add_listener(_on_config_changed)
+    history.add_listener(_on_history_changed)
 
     theme = config.get("theme")
     dark = theme == "dark" or (theme == "system" and _system_is_dark())
