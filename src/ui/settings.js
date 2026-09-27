@@ -72,6 +72,22 @@ function fillSelect(selectEl, choices, current) {
   }
 }
 
+// 効果音の選択肢。選んでいた wav が消えていたら「見つかりません」を付けて残す(勝手に変えない)
+function soundChoices(names, current) {
+  const choices = [["", "なし"], ...names.map((name) => [name, name.replace(/\.wav$/i, "")])];
+  if (current && !names.includes(current)) {
+    choices.push([current, `${current.replace(/\.wav$/i, "")}(見つかりません)`]);
+  }
+  return choices;
+}
+
+// 試し聞き(今ドロップダウンで選んでいる音を鳴らす)
+document.querySelectorAll(".sound-preview").forEach((button) => {
+  button.addEventListener("click", () => {
+    window.pywebview.api.play_sound(document.getElementById(button.dataset.for).value);
+  });
+});
+
 // マイクの名前の一覧を、ドロップダウンの選択肢にする
 // 今選んでいるマイクが外されていたら、「見つかりません」を付けて残す(勝手に別のマイクに変えない)
 function micChoices(names, current) {
@@ -150,6 +166,12 @@ async function loadSettings() {
   buildModelList(document.getElementById("model-list"), s.models, s.values.model_size);
   bindSelect(document.getElementById("theme-select"), "theme", s.themes, s.values.theme, applyTheme);
   bindSelect(document.getElementById("indicator-select"), "indicator_mode", s.indicator_modes, s.values.indicator_mode);
+
+  // 効果音。選択肢は「なし」+ assets/sounds の wav(表示は .wav を外した名前)
+  for (const select of document.querySelectorAll(".sound-select")) {
+    const key = select.dataset.key;
+    bindSelect(select, key, soundChoices(s.sounds, s.values[key]), s.values[key]);
+  }
   document.getElementById("restart-notice").hidden = !s.restart_needed;
 }
 

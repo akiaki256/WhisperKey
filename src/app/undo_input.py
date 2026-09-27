@@ -3,7 +3,7 @@
 
 - 貼り付けた文章を remember() で覚えておき、undo() でその文字数ぶん Backspace を送る
   (カーソルを動かしたり自分で打ったりしていなければ、貼り付けた分だけが消える)
-- 取り消せるのは一回だけ。続けて押しても、その前の入力までは消さない
+- 取り消せるのは一回だけ。続けて押しても、その前の入力までは消さない(何も起きない)
 - 音声実行が動いたら forget() で忘れる(直前がコマンドだったのに、その前の入力を消さないように)
 - 入力履歴からは消さない(聞き間違いを音声辞書に登録するときに、履歴から拾えるように)
 
@@ -14,7 +14,6 @@
 import ctypes
 import threading
 import time
-import winsound
 
 import keyboard
 
@@ -52,14 +51,13 @@ def _wait_for_modifiers_released(timeout=2.0):
 
 
 def undo():
-    """直前に貼り付けた文章を消す。取り消すものが無ければ、低い音で知らせるだけ"""
+    """直前に貼り付けた文章を消す。取り消すものが無ければ何もしない"""
     global _last
     with _lock:
         text, _last = _last, None
 
     if not text:
         print("取り消し：取り消せる入力がありません")
-        winsound.Beep(400, 80)  # Hz, ms
         return
 
     _wait_for_modifiers_released()

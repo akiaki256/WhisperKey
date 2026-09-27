@@ -115,6 +115,10 @@ def defaults():
         "undo_key": UNDO_KEY_DEFAULT,
         # True なら入力モードの切り替えキーを押している間だけ録音する(False は押すたびにオン/オフ)
         "push_to_talk": False,
+        # 効果音(assets/sounds の wav のファイル名)。"" なら鳴らさない
+        "sound_startup": "起動(デフォルト).wav",
+        "sound_on": "開始(デフォルト).wav",
+        "sound_off": "停止(デフォルト).wav",
         "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
         # インジケーターの表示方法と位置(画面の左上からのピクセル。丸と操作パネルで共通)。つまんで動かすと保存される
@@ -175,8 +179,8 @@ def _fix_positive_int(v, default):
     return default
 
 
-def _fix_optional_key(v, default):
-    # 割り当てないキーは ""(空)。文字でなければ初期値に戻す
+def _fix_optional_text(v, default):
+    # 空("")も正しい値として扱う(割り当てないキー、鳴らさない効果音など)。文字でなければ初期値に戻す
     return v.strip() if isinstance(v, str) else default
 
 
@@ -201,8 +205,11 @@ def normalize(raw):
         "audio_device_name": _fix_text(merged["audio_device_name"], d["audio_device_name"]),
         "audio_device_sample_rate": _fix_positive_int(merged["audio_device_sample_rate"], d["audio_device_sample_rate"]),
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
-        "undo_key": _fix_optional_key(merged["undo_key"], d["undo_key"]),
+        "undo_key": _fix_optional_text(merged["undo_key"], d["undo_key"]),
         "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
+        "sound_startup": _fix_optional_text(merged["sound_startup"], d["sound_startup"]),
+        "sound_on": _fix_optional_text(merged["sound_on"], d["sound_on"]),
+        "sound_off": _fix_optional_text(merged["sound_off"], d["sound_off"]),
         "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_mode": _fix_choice(merged["indicator_mode"], INDICATOR_MODE_CHOICES, d["indicator_mode"]),

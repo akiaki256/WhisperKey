@@ -26,6 +26,7 @@ import convert_dict
 import history
 import key_shortcut
 import paths
+import sounds
 import tray_icon
 
 _state_manager = key_shortcut.MainStateManager()
@@ -43,6 +44,7 @@ SHORTCUT_LABELS = {"toggle": "入力モードの切り替え", "undo": "直前�
 EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
     "history_enabled", "history_limit", "push_to_talk", "indicator_mode",
+    "sound_startup", "sound_on", "sound_off",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
@@ -123,6 +125,7 @@ class Api:
             "models": _model_list(),
             "themes": config_store.THEME_CHOICES,
             "indicator_modes": config_store.INDICATOR_MODE_CHOICES,
+            "sounds": sounds.list_sounds(),
             "history_limits": config_store.HISTORY_LIMIT_CHOICES,
             "mics": self.get_mics(),
             "restart_needed": values["model_size"] != _loaded_model,
@@ -131,6 +134,10 @@ class Api:
     def get_level(self):
         """今の音量(しきい値と同じ物差し)。設定タブを開いているあいだ、画面が 50ms ごとに取りに来る"""
         return audio.get_level()
+
+    def play_sound(self, name):
+        """効果音の試し聞き"""
+        sounds.play_file(name)
 
     def get_mics(self):
         """今つながっているマイクの一覧(名前)。先頭は「既定のデバイスに自動接続」。更新ボタンからも呼ばれる"""

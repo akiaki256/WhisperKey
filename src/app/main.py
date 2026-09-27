@@ -96,6 +96,7 @@ import tray_icon
 import main_window
 import history
 import undo_input
+import sounds
 
 
 # ========================================================
@@ -123,6 +124,7 @@ print("動作準備完了")
 
 # 起動中インジケーターを閉じる(ここで全準備完了)
 startup.close()
+sounds.play("startup")  # 準備ができたことを音で知らせる
 
 
 # ========================================================

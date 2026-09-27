@@ -11,6 +11,10 @@
 - UI_DIR: 本体のウィンドウの画面(HTML/CSS/JS)の置き場所
     exe化後: PyInstallerの展開先(sys._MEIPASS)/ui
     開発中: src/ui
+- SOUNDS_DIR: 効果音(wav)の置き場所。利用者が wav を足せるように、exe に同梱したものではなく
+  インストール先の assets を見る(ビルドとインストーラーが assets をインストール先にも置いている)
+    exe化後: exeと同じフォルダ/assets/sounds
+    開発中: プロジェクト直下の assets/sounds
 """
 
 import os
@@ -25,10 +29,12 @@ if FROZEN:
     APP_DIR = os.path.dirname(sys.executable)
     ASSETS_DIR = os.path.join(sys._MEIPASS, "assets")
     UI_DIR = os.path.join(sys._MEIPASS, "ui")
+    SOUNDS_DIR = os.path.join(APP_DIR, "assets", "sounds")
 else:
     APP_DIR = os.path.join(PROJECT_ROOT, "_local", "dev_data")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
     UI_DIR = os.path.join(PROJECT_ROOT, "src", "ui")
+    SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
 # ユーザーデータ
 CONFIG_JSON = os.path.join(APP_DIR, "config.json")

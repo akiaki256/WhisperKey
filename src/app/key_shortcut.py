@@ -14,9 +14,8 @@ import ctypes
 from ctypes import wintypes
 import threading
 import time
-import winsound
-
 import config
+import sounds
 
 _user32 = ctypes.WinDLL("user32", use_last_error=True)
 _user32.RegisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.UINT, wintypes.UINT]
@@ -159,16 +158,16 @@ class MainStateManager():
         return self._pending > 0
 
     def set_state(self, new_state):
-        """録音のオン("start")/オフ("stop")を変えて、音で知らせる。同じなら何もしない"""
+        """録音のオン("start")/オフ("stop")を変えて、効果音で知らせる。同じなら何もしない"""
         if new_state == self.state:
             return
         self.state = new_state
         if new_state == "start":
             print("聞き取りモード：スタート")
-            winsound.Beep(1200, 200) # Hz, ms
+            sounds.play("on")
         else:
             print("聞き取りモード：ストップ")
-            winsound.Beep(250, 200) # Hz, ms
+            sounds.play("off")
 
     def toggle_state(self):
         self.set_state("start" if self.state == "stop" else "stop")
@@ -292,9 +291,6 @@ class MainStateManager():
                 print(f"ショートカットキー登録：失敗 ({action}: {key_str}): {errors[action][1]}")
             else:
                 print(f"ショートカットキー登録：完了 ({action}: {key_str or '割り当てなし'})")
-        if "toggle" not in errors:
-            winsound.Beep(1200, 100)
-            winsound.Beep(1600, 100)  # Hz, ms
         return errors
 
     def _send_command(self, command, action=None, key_str=None):
