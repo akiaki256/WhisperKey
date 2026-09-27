@@ -1,0 +1,887 @@
+/*
+  Windows 11 の設定画面に寄せた見た目
+  色はすべて変数にして、ライト/ダークで中身だけを入れ替える
+  - テーマ「システム設定に合わせる」: Windows のモードに従う(prefers-color-scheme)
+  - テーマ「ライト」「ダーク」: <html data-theme="light|dark"> で上書きする(settings.js が設定)
+*/
+
+/* ---------- 色 ---------- */
+
+:root {
+  color-scheme: light;               /* ドロップダウンの一覧やスクロールバーも、この色合いになる */
+  --bg: #f3f3f3;                     /* 窓の背景(main_window.py の BG_LIGHT と合わせる) */
+  --card: #fbfbfb;
+  --card-stroke: #e5e5e5;
+  --text: #1b1b1b;
+  --text-secondary: #616161;
+  --subtle-hover: rgba(0, 0, 0, 0.04);
+  --subtle-selected: rgba(0, 0, 0, 0.06);
+  --control: #ffffff;
+  --control-hover: #f9f9f9;
+  --control-pressed: #f5f5f5;
+  --subtle-pressed: rgba(0, 0, 0, 0.02);
+  --control-stroke: #d1d1d1;
+  --accent: #005fb8;
+  --accent-hover: #196ebf;
+  --on-accent: #ffffff;
+  --infobar: #dbeaf7;
+  --infobar-error: #fde7e9;
+  --infobar-warning: #fff4ce;
+}
+
+/* ダークの色は2か所で使うので、同じ内容を並べている */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #202020;                   /* main_window.py の BG_DARK と合わせる */
+    --card: #2b2b2b;
+    --card-stroke: #1d1d1d;
+    --text: #ffffff;
+    --text-secondary: #c5c5c5;
+    --subtle-hover: rgba(255, 255, 255, 0.06);
+    --subtle-selected: rgba(255, 255, 255, 0.08);
+    --control: #2d2d2d;
+    --control-hover: #323232;
+    --control-pressed: #272727;
+    --subtle-pressed: rgba(255, 255, 255, 0.04);
+    --control-stroke: #3c3c3c;
+    --accent: #60cdff;
+    --accent-hover: #5bbde9;
+    --on-accent: #000000;
+    --infobar: #2c3b47;
+    --infobar-error: #442726;
+    --infobar-warning: #433519;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #202020;
+  --card: #2b2b2b;
+  --card-stroke: #1d1d1d;
+  --text: #ffffff;
+  --text-secondary: #c5c5c5;
+  --subtle-hover: rgba(255, 255, 255, 0.06);
+  --subtle-selected: rgba(255, 255, 255, 0.08);
+  --control: #2d2d2d;
+  --control-hover: #323232;
+  --control-pressed: #272727;
+  --subtle-pressed: rgba(255, 255, 255, 0.04);
+  --control-stroke: #3c3c3c;
+  --accent: #60cdff;
+  --accent-hover: #5bbde9;
+  --on-accent: #000000;
+  --infobar: #2c3b47;
+  --infobar-error: #442726;
+  --infobar-warning: #433519;
+}
+
+/* ---------- 全体 ---------- */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  /* 英数字は Segoe UI、日本語は Yu Gothic UI(Windows の設定画面と同じ組み合わせ) */
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", sans-serif;
+  font-size: 14px;
+  user-select: none;
+}
+
+/* Windows に入っているアイコンのフォント(Windows 10 は Segoe MDL2 Assets) */
+.icon {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 16px;
+  line-height: 1;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- タイトルバー ---------- */
+
+.titlebar {
+  display: flex;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.titlebar-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.caption-button {
+  width: 46px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+.caption-button .icon {
+  font-size: 10px;
+}
+
+.caption-button:hover {
+  background: var(--subtle-hover);
+}
+
+.caption-button.close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+/* ---------- 左のタブと右の中身 ---------- */
+
+.layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;   /* これが無いと、中身が多いときに main がスクロールせず窓からはみ出す */
+}
+
+nav {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 8px;
+}
+
+nav button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  height: 36px;
+  margin-bottom: 4px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+}
+
+nav button:hover {
+  background: var(--subtle-hover);
+}
+
+nav button.active {
+  background: var(--subtle-selected);
+}
+
+/* 選ばれているタブの左端の縦線 */
+nav button.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 24px 16px;
+}
+
+main section {
+  display: none;
+}
+
+main section.active {
+  display: block;
+}
+
+h1 {
+  margin: 8px 0 20px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 20px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ---------- カード(左に名前と説明、右に操作するもの) ---------- */
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  margin-bottom: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--card-stroke);
+  border-radius: 6px;
+  background: var(--card);
+}
+
+.card-text {
+  flex: 1;
+}
+
+.card-title {
+  display: block;
+}
+
+.card-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.card-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit {
+  color: var(--text-secondary);
+}
+
+.section-desc {
+  margin: -4px 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* 説明文と、右端のボタンを横に並べる */
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.section-head .section-desc {
+  flex: 1;
+  margin: 0;
+}
+
+.section-head button .icon {
+  font-size: 12px;
+}
+
+/* ---------- 左 → 右 のカード(音声辞書・音声実行) ---------- */
+
+/* 左(変換前・キーワード)、矢印、右(変換後・開くもの)、右端に消すボタン */
+.pair-card {
+  align-items: flex-start;
+}
+
+.pair-left,
+.pair-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* 入れ物の枠を消して、中の入力欄を .pair-left の縦並びにそのまま並べる */
+.dict-before-rows {
+  display: contents;
+}
+
+/* 入力欄と、その右のボタンを横に並べる(変換前と ×、開くものと「参照」) */
+.dict-before-row,
+.field-row {
+  display: flex;
+  gap: 4px;
+}
+
+.pair-card select {
+  width: 100%;
+  min-width: 0;
+}
+
+.pair-card input[type="text"] {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--control-stroke);
+  border-radius: 4px;
+  background: var(--control);
+}
+
+/* 右の列の中で縦に並ぶ入力欄は、flex: 1 だと高さが縮む。高さは固定のまま */
+.pair-left > input[type="text"],
+.pair-right > input[type="text"] {
+  flex: none;
+}
+
+/* × とごみ箱は枠なしにして、入力欄より控えめに見せる */
+.pair-card .icon-button {
+  flex-shrink: 0;
+  border-color: transparent;
+  background: none;
+}
+
+.pair-card .icon-button:hover {
+  background: var(--subtle-hover);
+}
+
+.pair-card input[type="text"]:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);   /* Windows の入力欄と同じ、下線で選択中を示す */
+}
+
+.pair-arrow {
+  margin-top: 30px;   /* 見出しの下、最初の入力欄の高さにそろえる */
+  color: var(--text-secondary);
+}
+
+.pair-delete {
+  margin-top: 20px;
+}
+
+/* 文字だけの控えめなボタン(「+ 変換前を追加」) */
+button.subtle {
+  align-self: flex-start;
+  border-color: transparent;
+  background: none;
+  color: var(--accent);
+}
+
+button.subtle:hover {
+  background: var(--subtle-hover);
+}
+
+button.subtle .icon {
+  font-size: 12px;
+}
+
+/* 押すと広がるカード(<details>)。開く・閉じるはブラウザに任せる */
+.card.expander {
+  display: block;
+  padding: 0;
+}
+
+.expander summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;   /* ブラウザ標準の三角を消す(右の ∨ を使う) */
+}
+
+.expander summary::-webkit-details-marker {
+  display: none;
+}
+
+.expander summary:hover {
+  background: var(--control-hover);
+  border-radius: 6px;
+}
+
+.expander .chevron {
+  font-size: 12px;
+  transition: transform 0.15s;
+}
+
+.expander[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.expander-body {
+  padding: 4px 16px 16px 48px;   /* 左はアイコンの幅ぶん下げて、見出しの文字とそろえる */
+  border-top: 1px solid var(--card-stroke);
+  line-height: 1.6;
+}
+
+.expander-body table {
+  border-collapse: collapse;
+}
+
+.expander-body th {
+  padding: 6px 16px 6px 0;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.expander-body td {
+  padding: 6px 0;
+}
+
+.example {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ラジオボタンのカード(カードのどこを押しても選べるよう、カード全体を label にする) */
+.radio-card {
+  cursor: pointer;
+}
+
+.radio-card:hover {
+  background: var(--control-hover);
+}
+
+.radio-card input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-radius: 50%;   /* キーボード操作のときの枠も丸くする */
+  accent-color: var(--accent);
+}
+
+/* ---------- 操作するもの ---------- */
+
+input[type="range"] {
+  width: 180px;
+  accent-color: var(--accent);
+}
+
+input[type="number"],
+select,
+button {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--control-stroke);
+  border-radius: 4px;
+  background: var(--control);
+}
+
+input[type="number"] {
+  width: 72px;
+}
+
+select {
+  min-width: 200px;
+}
+
+button:hover,
+select:hover {
+  background: var(--control-hover);
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ショートカットキーのボタン。キーを待っているあいだはアクセント色の枠にする */
+button.shortcut-button {
+  min-width: 120px;
+}
+
+button.shortcut-button.capturing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* アイコンだけのボタン(正方形) */
+button.icon-button {
+  width: 32px;
+  padding: 0;
+}
+
+button.accent {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+button.accent:hover {
+  background: var(--accent-hover);
+}
+
+/* ---------- お知らせの帯 ---------- */
+
+.infobar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: var(--infobar);
+}
+
+.infobar[hidden] {
+  display: none;
+}
+
+.infobar .icon {
+  color: var(--accent);
+}
+
+.infobar-text {
+  flex: 1;
+}
+
+.infobar.error {
+  background: var(--infobar-error);
+}
+
+.infobar.warning {
+  background: var(--infobar-warning);
+}
+
+.infobar.warning .icon {
+  color: inherit;
+}
+
+/* ---------- スイッチ(Windows のトグルスイッチ) ---------- */
+
+.toggle-label {
+  color: var(--text-secondary);
+}
+
+input.toggle {
+  appearance: none;
+  position: relative;
+  width: 40px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--text-secondary);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* つまみ */
+input.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: left 0.15s;
+}
+
+input.toggle:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+input.toggle:checked::after {
+  left: 23px;
+  background: var(--on-accent);
+}
+
+/* ---------- 入力履歴 ---------- */
+
+.history-item {
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.history-text {
+  white-space: pre-wrap;      /* 改行やスペースをそのまま見せる */
+  overflow-wrap: anywhere;    /* 長い URL などでもカードからはみ出さない */
+  user-select: text;          /* なぞって選べるように(あとで「辞書に追加」に使う) */
+}
+
+.history-time {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.history-item .icon-button {
+  flex-shrink: 0;
+  border-color: transparent;
+  background: none;
+}
+
+.history-item .icon-button:hover {
+  background: var(--subtle-hover);
+}
+
+/* 押せないボタン(履歴が空のときの「消去」など) */
+button:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ---------- 入力履歴 → 音声辞書 ---------- */
+
+/* なぞって選んだところの下に浮かぶ「辞書に追加」ボタン */
+.selection-flyout {
+  position: fixed;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.selection-flyout .icon {
+  font-size: 12px;
+}
+
+/* どのカードのことか伝えるため、少しのあいだ光らせる */
+.card.flash {
+  animation: card-flash 1.5s ease-out;
+}
+
+@keyframes card-flash {
+  0%, 30% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  100% {
+    border-color: var(--card-stroke);
+    box-shadow: none;
+  }
+}
+
+/* エラーが二つ以上あるときは、改行して並べる */
+.infobar.error {
+  white-space: pre-line;
+}
+
+/* ショートカットの「割り当てない」(×)は控えめに */
+button.shortcut-clear {
+  border-color: transparent;
+  background: none;
+}
+
+button.shortcut-clear:hover {
+  background: var(--subtle-hover);
+}
+
+/* ---------- 音量しきい値(レベルメーター一体型) ---------- */
+
+/* 上に名前と数字、下に横いっぱいのメーター */
+.card.card-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/*
+  つまみ(直径 20px)の中心は、両端から 10px 内側までしか動かない。
+  溝とバーも左右 10px 内側に置いて、つまみの位置とバーの位置の目盛りをそろえる
+*/
+.level-meter {
+  position: relative;
+  height: 24px;
+}
+
+/* 溝 */
+.level-meter::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 9px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--control-stroke);
+}
+
+/* 今の音量。--p(0〜1)は level_meter.js が入れる */
+.level-fill {
+  --p: 0;
+  position: absolute;
+  left: 10px;
+  top: 9px;
+  width: calc((100% - 20px) * var(--p));
+  height: 6px;
+  border-radius: 3px;
+  background: var(--text-secondary);
+}
+
+/* つまみ(しきい値)を超えたら、録音が始まる色に */
+.level-fill.over {
+  background: var(--accent);
+}
+
+/* しきい値のつまみ。溝は透明にして、下のメーターを見せる */
+.level-meter input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.level-meter input[type="range"]::-webkit-slider-runnable-track {
+  height: 24px;
+  background: transparent;
+}
+
+/* Windows のスライダーと同じ、白い輪の中にアクセント色の丸 */
+.level-meter input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border: 5px solid var(--control);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--control-stroke);
+}
+
+/* ---------- 押したときの感触(Windows のボタンと同じく、押した瞬間に変わる) ---------- */
+
+button {
+  transition: background 0.08s;
+}
+
+/* 背景が少し沈み、文字やアイコンが少し薄くなる */
+button:active {
+  background: var(--control-pressed);
+  color: var(--text-secondary);
+}
+
+/* 枠なしのボタン(タブ、×、ごみ箱、「+ 変換前を追加」など)は、うっすら色がつくだけ */
+nav button:active,
+.caption-button:active,
+button.subtle:active,
+.pair-card .icon-button:active,
+.history-item .icon-button:active,
+button.shortcut-clear:active {
+  background: var(--subtle-pressed);
+}
+
+.caption-button.close:active {
+  background: #c42b1c;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+button.accent:active {
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0.8;
+}
+
+/* アイコンは、押し込んだようにきゅっと小さくなる */
+button .icon {
+  display: inline-block;
+  transition: transform 0.1s;
+}
+
+button:active .icon {
+  transform: scale(0.85);
+}
+
+/* マイクの一覧の更新: 押したら矢印が一回転(settings.js が spin を付ける) */
+button .icon.spin {
+  animation: spin 0.5s ease-out;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 効果音の試し聞き: 鳴っているあいだ、アイコンをアクセント色に(settings.js が playing を付ける) */
+button.sound-preview.playing .icon {
+  color: var(--accent);
+}
+
+/* ---------- モデルタブ(ダウンロード) ---------- */
+
+.model-ready {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.model-ready .icon {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.model-downloading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ダウンロード中は、丸い矢印がくるくる回り続ける */
+.icon.spinning {
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+.model-download .icon {
+  font-size: 12px;
+}
+
+/* 手元にあるモデルのごみ箱。選ばれているモデルは消せないので出さない */
+.model-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-status .icon-button {
+  border-color: transparent;
+  background: none;
+}
+
+.model-status .icon-button:hover {
+  background: var(--subtle-hover);
+}
+
+.model-status .icon-button:active {
+  background: var(--subtle-pressed);
+}
+
+.radio-card:has(input:checked) .model-delete {
+  visibility: hidden;   /* 消えても幅は残して、「ダウンロード済み」の位置をそろえる */
+}
+
+/* 手元に無いモデルのカードは、選べないことがわかるように */
+.radio-card.unavailable {
+  cursor: default;
+}
+
+.radio-card.unavailable:hover {
+  background: var(--card);
+}
+
+.radio-card.unavailable .card-title,
+.radio-card.unavailable input[type="radio"] {
+  opacity: 0.6;
+}

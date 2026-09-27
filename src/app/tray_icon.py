@@ -4,6 +4,7 @@
 - 右クリックメニュー: 「設定を開く」「再起動」「終了」の3項目
 - ツールチップ: "WhisperKey"
 - アイコン: assets/stray_icon.png
+- 「設定を開く」は本体の窓を設定タブで前に出す(最小化されていれば元に戻す)
 - 「再起動」は restart.bat を起動してプロセス再起動
 - 「終了」は os._exit(0) で即終了
 """
@@ -16,6 +17,7 @@ import pystray
 from PIL import Image
 
 import paths
+import main_window
 
 
 # アイコンファイルパス
@@ -23,33 +25,20 @@ _ICON_PATH = paths.asset("stray_icon.png")
 
 
 def _open_config(icon, item):
-    """「設定を開く」: 設定exeまたは設定スクリプトを起動"""
-    # コンソールウィンドウを出さないフラグ
-    creation_flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
-    
-    try:
-        if getattr(sys, "frozen", False):
-            # exe化後: 設定exeを起動
-            subprocess.Popen(
-                [paths.CONFIG_EXE],
-                creationflags=creation_flags,
-                close_fds=True,
-            )
-        else:
-            # 開発中: pythonで設定スクリプトを起動
-            subprocess.Popen(
-                [sys.executable, paths.CONFIG_SCRIPT],
-                creationflags=creation_flags,
-                close_fds=True,
-            )
-    except Exception as e:
-        print(f"設定画面の起動に失敗: {e}")
+    """「設定を開く」: 本体の窓を設定タブで前に出す"""
+    main_window.show("settings")
 
 
 def _restart(icon, item):
-    """「再起動」: restart.bat を起動してプロセスを再起動する。
-    
+    """「再起動」"""
+    restart_app()
+
+
+def restart_app():
+    """restart.bat を起動してプロセスを再起動する。
+
     ショートカットキーが効かなくなる症状への対処用。
+    モデルタブでモデルを変えたあとの再起動にも使う。
     restart.bat 側で taskkill → sleep → WhisperKey.exe 起動を実行するため、
     自プロセスは taskkill で強制終了される(os._exit は呼ばない)。
     
@@ -119,7 +108,7 @@ def _build_icon():
 def start_tray_in_background():
     """
     システムトレイを別スレッドで起動する。
-    メインスレッドは tkinter の mainloop でブロックする想定なので、
+    メインスレッドは本体の窓(pywebview)でブロックする想定なので、
     pystray を daemon スレッドで動かす。
     """
     icon = _build_icon()

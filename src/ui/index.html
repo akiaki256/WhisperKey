@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WhisperKey</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- タイトルバー(枠なしの窓なので自作)。pywebview-drag-region の部分だけ、つまんで窓を動かせる -->
+  <header class="titlebar">
+    <div class="titlebar-title pywebview-drag-region">WhisperKey</div>
+    <button class="caption-button" id="btn-minimize" title="最小化"><span class="icon">&#xE921;</span></button>
+    <button class="caption-button close" id="btn-close" title="終了"><span class="icon">&#xE8BB;</span></button>
+  </header>
+
+  <div class="layout">
+    <!-- 左のタブ。アイコンは Windows の Segoe Fluent Icons の文字 -->
+    <nav>
+      <button data-tab="history"><span class="icon">&#xE81C;</span>入力履歴</button>
+      <button data-tab="dict"><span class="icon">&#xE82D;</span>音声辞書</button>
+      <button data-tab="command"><span class="icon">&#xE768;</span>音声実行</button>
+      <button data-tab="model"><span class="icon">&#xE950;</span>モデル</button>
+      <button data-tab="shortcuts"><span class="icon">&#xE765;</span>ショートカット</button>
+      <button data-tab="settings"><span class="icon">&#xE713;</span>設定</button>
+    </nav>
+
+    <main>
+      <section id="tab-shortcuts">
+        <!-- ショートカットの一覧と、キーの割り当て。割り当てのしくみは settings_shortcut.js -->
+        <h1>ショートカット</h1>
+        <p id="shortcuts-error" class="infobar error" hidden></p>
+        <p class="section-desc">右のボタンを押してから、使いたいキーを押すと割り当てられます</p>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">音声入力</div>
+            <!-- プッシュトゥトークかどうかで、settings.js が説明を書き換える -->
+            <div class="card-desc" id="toggle-key-desc">押すたびに録音のオン/オフを切り替えます</div>
+          </div>
+          <div class="card-control"><button class="shortcut-button" data-action="toggle"></button></div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">入力モード切り替え</div>
+            <div class="card-desc">通常(押すたびにオン/オフ)とプッシュトゥトーク(押している間だけ)を切り替えます</div>
+          </div>
+          <div class="card-control">
+            <button class="shortcut-button" data-action="mode"></button>
+            <button class="icon-button shortcut-clear" data-action="mode" title="割り当てない"><span class="icon">&#xE711;</span></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">直前の入力を取り消す</div>
+            <div class="card-desc">最後に入力した文章を消します(1回だけ)。入力のあとにカーソルを動かしていると、違うところが消えるので注意してください</div>
+          </div>
+          <div class="card-control">
+            <button class="shortcut-button" data-action="undo"></button>
+            <button class="icon-button shortcut-clear" data-action="undo" title="割り当てない"><span class="icon">&#xE711;</span></button>
+          </div>
+        </div>
+
+        <!-- 押すと広がるカード。中身はキーの判定(key_shortcut.py の check_new_shortcut と
+             settings_shortcut.js の mainKeyName)に合わせて書く -->
+        <details class="card expander">
+          <summary>
+            <span class="icon">&#xE946;</span>
+            <span class="card-text">
+              <span class="card-title">割り当てられるキー</span>
+              <span class="card-desc">使えるキーの組み合わせと、その理由</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="expander-body">
+            <p>割り当てたキーは、WhisperKey が起動している間、<strong>ほかのソフトでは使えなくなります</strong>。ふだんの文字入力に使うキーは選べないようにしています。</p>
+            <table>
+              <tr>
+                <th>Ctrl か Alt を含む</th>
+                <td>A〜Z、0〜9、Space、Enter、F1〜F24 と組み合わせられます。Shift を足してもかまいません<br><span class="example">例: Ctrl + Space、Ctrl + Alt + R、Alt + Shift + F2</span></td>
+              </tr>
+              <tr>
+                <th>単体・Shift だけ</th>
+                <td>F1〜F24 だけ選べます<br><span class="example">例: F9、Shift + F10</span></td>
+              </tr>
+              <tr>
+                <th>使えないキー</th>
+                <td>Esc、Tab、矢印キー、Windows キーなど。ほかのソフトが使用中のキーも割り当てられません</td>
+              </tr>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <!-- 入力履歴。主役は一覧なので、スイッチ・件数・消去は一番下の「履歴の設定」へ。動きは history.js -->
+      <section id="tab-history">
+        <h1>入力履歴</h1>
+        <p id="history-error" class="infobar error" hidden></p>
+
+        <!-- スイッチが一番下にあるので、オフのときだけここで知らせる(オフにしたのを忘れて「増えない」とならないように) -->
+        <p id="history-off-notice" class="infobar" hidden>
+          <span class="icon">&#xE946;</span>
+          <span class="infobar-text">「入力履歴を残す」がオフのため、新しい入力は残りません</span>
+        </p>
+
+        <p class="section-desc">文章の一部をなぞって選ぶと、音声辞書に追加できます</p>
+        <!-- history.js が履歴の数だけカードを作る -->
+        <div id="history-list"></div>
+
+        <h2>履歴の設定</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="history-enabled">入力履歴を残す</label>
+            <div class="card-desc">オンの間、入力した文章を残します。履歴はローカルファイルへ保存されます</div>
+          </div>
+          <div class="card-control">
+            <span id="history-enabled-label" class="toggle-label"></span>
+            <input type="checkbox" id="history-enabled" class="toggle">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="history-limit">残す件数</label>
+            <div class="card-desc">超えた分は、古いものから消えます</div>
+          </div>
+          <div class="card-control"><select id="history-limit"></select></div>
+        </div>
+        <div id="history-limit-confirm" class="infobar warning" hidden>
+          <span class="icon">&#xE7BA;</span>
+          <span class="infobar-text"></span>
+          <button class="accent confirm-ok">消す</button>
+          <button class="confirm-cancel">やめる</button>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">入力履歴の消去</div>
+            <div class="card-desc">残っている履歴をすべて消します</div>
+          </div>
+          <div class="card-control"><button id="btn-clear-history">消去</button></div>
+        </div>
+        <div id="history-clear-confirm" class="infobar warning" hidden>
+          <span class="icon">&#xE7BA;</span>
+          <span class="infobar-text"></span>
+          <button class="accent confirm-ok">消去</button>
+          <button class="confirm-cancel">やめる</button>
+        </div>
+      </section>
+
+      <!-- 音声辞書。一つの項目 = 変換後ひとつと、変換前いくつか(多対一)。動きは dict.js -->
+      <section id="tab-dict">
+        <h1>音声辞書</h1>
+        <p id="dict-error" class="infobar error" hidden></p>
+        <p id="dict-notice" class="infobar" hidden></p>
+        <div class="section-head">
+          <p class="section-desc">聞き取った言葉を、入力する前に置き換えます。変換前は、聞き間違いやすい言い方をいくつでも登録できます</p>
+          <button id="btn-add-dict" class="accent"><span class="icon">&#xE710;</span> 追加</button>
+        </div>
+        <!-- dict.js が項目の数だけカードを作る -->
+        <div id="dict-list"></div>
+      </section>
+
+      <!-- 音声実行。話した言葉がキーワードと一致したら、入力する代わりに開く。動きは command.js -->
+      <section id="tab-command">
+        <h1>音声実行</h1>
+        <p id="command-error" class="infobar error" hidden></p>
+        <div class="section-head">
+          <p class="section-desc">話した言葉がキーワードと完全に一致したとき、入力する代わりに URL やファイルを開きます。判定は音声辞書で置き換えたあとの言葉で行うので、言い方の揺れは音声辞書にまとめられます</p>
+          <button id="btn-add-command" class="accent"><span class="icon">&#xE710;</span> 追加</button>
+        </div>
+        <!-- command.js がコマンドの数だけカードを作る -->
+        <div id="command-list"></div>
+      </section>
+
+      <!-- 声をどう聞き取って言葉にするか(言語・モデル)。保存のしくみは設定タブと同じ(settings.js) -->
+      <section id="tab-model">
+        <h1>モデル</h1>
+        <p id="model-error" class="infobar error" hidden></p>
+        <!-- 選ばれているモデルが手元に無い・読み込み中・読み込めた、を知らせる(model_tab.js) -->
+        <p id="model-notice" class="infobar" hidden></p>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="language-select">認識言語</label>
+            <div class="card-desc">話す言葉を選びます</div>
+          </div>
+          <div class="card-control"><select id="language-select"></select></div>
+        </div>
+
+        <h2>使用するモデル</h2>
+        <p class="section-desc">大きいモデルほど正確ですが、処理が重くなります</p>
+        <!-- settings.js がモデルの数だけカードを作る -->
+        <div id="model-list"></div>
+        <div id="model-delete-confirm" class="infobar warning" hidden>
+          <span class="icon">&#xE7BA;</span>
+          <span class="infobar-text"></span>
+          <button class="accent confirm-ok">削除</button>
+          <button class="confirm-cancel">やめる</button>
+        </div>
+        <div id="restart-notice" class="infobar" hidden>
+          <span class="icon">&#xE946;</span>
+          <span class="infobar-text">モデルの変更は、再起動したあとに反映されます</span>
+          <button id="btn-restart" class="accent">再起動</button>
+        </div>
+      </section>
+
+      <section id="tab-settings">
+        <!-- 変えた瞬間に保存され、効く(モデルだけは再起動のあと) -->
+        <h1>設定</h1>
+        <p id="settings-error" class="infobar error" hidden></p>
+
+        <h2>入力モード</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="push-to-talk">プッシュトゥトーク</label>
+            <div class="card-desc">オンにすると、音声入力のキーを押している間だけ録音します</div>
+          </div>
+          <div class="card-control">
+            <span id="push-to-talk-label" class="toggle-label"></span>
+            <input type="checkbox" id="push-to-talk" class="toggle">
+          </div>
+        </div>
+
+        <h2>録音</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="mic-select">マイク</label>
+            <div class="card-desc">選んだ瞬間に切り替わります</div>
+          </div>
+          <div class="card-control">
+            <select id="mic-select"></select>
+            <button id="btn-refresh-mics" class="icon-button" title="マイクの一覧を更新"><span class="icon">&#xE72C;</span></button>
+          </div>
+        </div>
+        <!-- レベルメーターの上に、しきい値のつまみを重ねる。動きは level_meter.js -->
+        <div class="card card-stack">
+          <div class="card-row">
+            <div class="card-text">
+              <label class="card-title" for="volume-range">音量しきい値</label>
+              <div class="card-desc">バーがつまみを超えると録音が始まります。話していないときのバーより、少し右に合わせてください</div>
+            </div>
+            <div class="card-control"><input type="number" id="volume-number"></div>
+          </div>
+          <div class="level-meter">
+            <div class="level-fill" id="level-fill"></div>
+            <input type="range" id="volume-range" min="0" max="1000" step="1">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="silence-range">無音時間</label>
+            <div class="card-desc">話し終わってから変換を開始するまでの時間</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="silence-range">
+            <input type="number" id="silence-number"><span class="unit">秒</span>
+          </div>
+        </div>
+
+        <h2>貼り付け</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="clipboard-private">Win + V の履歴に残さない</label>
+            <div class="card-desc">音声入力の文字を、クリップボードの履歴やほかのパソコンへの同期に残しません</div>
+          </div>
+          <div class="card-control">
+            <span id="clipboard-private-label" class="toggle-label"></span>
+            <input type="checkbox" id="clipboard-private" class="toggle">
+          </div>
+        </div>
+
+        <h2>効果音</h2>
+        <p class="section-desc">インストール先の assets\sounds に wav ファイルを入れると、ここで選べるようになります</p>
+        <!-- settings.js が選択肢(「なし」+ assets/sounds の wav)を入れる。▶ で試し聞き -->
+        <div class="card">
+          <div class="card-text"><label class="card-title" for="sound-startup">ソフト起動音</label></div>
+          <div class="card-control">
+            <select id="sound-startup" class="sound-select" data-key="sound_startup"></select>
+            <button class="icon-button sound-preview" data-for="sound-startup" title="試し聞き"><span class="icon">&#xE768;</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text"><label class="card-title" for="sound-on">入力モードオン</label></div>
+          <div class="card-control">
+            <select id="sound-on" class="sound-select" data-key="sound_on"></select>
+            <button class="icon-button sound-preview" data-for="sound-on" title="試し聞き"><span class="icon">&#xE768;</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text"><label class="card-title" for="sound-off">入力モードオフ</label></div>
+          <div class="card-control">
+            <select id="sound-off" class="sound-select" data-key="sound_off"></select>
+            <button class="icon-button sound-preview" data-for="sound-off" title="試し聞き"><span class="icon">&#xE768;</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="sound-padding">ワイヤレスイヤホン対策</label>
+            <div class="card-desc">効果音の前後に無音をつけて、イヤホンが音の頭を取りこぼさないようにします。機種によっては、この対策でも音の頭が切れることがあります。有線やスピーカーなら、オフにすると少し早く鳴ります</div>
+          </div>
+          <div class="card-control">
+            <span id="sound-padding-label" class="toggle-label"></span>
+            <input type="checkbox" id="sound-padding" class="toggle">
+          </div>
+        </div>
+
+        <h2>外観</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="indicator-select">インジケーター</label>
+            <div class="card-desc">画面に浮かぶ録音の目印。操作パネルなら、マウスで録音・取り消し・プッシュトゥトークの切り替えができます</div>
+          </div>
+          <div class="card-control"><select id="indicator-select"></select></div>
+        </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="theme-select">テーマ</label>
+          </div>
+          <div class="card-control"><select id="theme-select"></select></div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="settings.js"></script>
+  <script src="level_meter.js"></script>
+  <script src="model_tab.js"></script>
+  <script src="settings_shortcut.js"></script>
+  <script src="dict.js"></script>
+  <script src="command.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

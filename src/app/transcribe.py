@@ -1,8 +1,14 @@
 import os
-import pyperclip
-import keyboard
-from convert_dict import load_convert_dict, convert_text
-from command import load_command_dict, execute_command
+import config
+import convert_dict
+import command
+import history
+import undo_input
+import model
+import paste
+from key_shortcut import MainStateManager
+
+state_manager = MainStateManager()
 
 
 # ハルシネーションフレーズリスト
@@ -30,73 +36,71 @@ def filter_hallucination(text):
     return text
 
 #faster-whisperに送信してテキスト化して貼り付け
-def whisper_function(model, language, wav_queue):
+def whisper_function(wav_queue):
     """
-    model: WhisperModelのインスタンス
-    language: 言語設定
+    言語は、画面で変えたらすぐ効くように、毎回 config から読む
+
+    モデルは毎回 model.get_model() から受け取る(選ばれているモデルが手元に無いまま起動したときは、
+    ダウンロードして読み込まれるまで待つ)
     wav_queue: 音声ファイルのキュー
     """
 
-    # CSVファイルからユーザー変換辞書を作成する
-    user_convert_dict_status = True
-    command_dict_status = True
-
-    user_convert_dict = load_convert_dict()
-    if user_convert_dict is None:
+    # CSVファイルからユーザー変換辞書とコマンドを作成する
+    # どちらも画面から保存されたらすぐ効くように、毎回 get_current() から使う
+    # (読み込みに失敗したときは空になり、変換・実行されないだけ)
+    if convert_dict.load_convert_dict() is None:
         print("ユーザー変換辞書取得：失敗（辞書変換機能OFF）")
-        user_convert_dict_status = False
     else:
         print("ユーザー変換辞書取得：成功")
-        
-    command_dict = load_command_dict()
-    if command_dict is None:
+
+    if command.load_command_dict() is None:
         print("コマンド辞書取得：失敗（コマンド実行機能OFF）")
-        command_dict_status = False
     else:
-        print("コマンド辞書取得：成功")       
-    
+        print("コマンド辞書取得：成功")
+
 
     while True:
         print("Whisperスレッド：キュー待機中...")
         filepath = wav_queue.get()
-        print(f"処理開始: {filepath}")
+        try:
+            print(f"処理開始: {filepath}")
 
-        segments, info = model.transcribe(filepath,
-                                            language=language,
-                                            beam_size=1,           # デフォルト5→1で高速化
-                                            best_of=1,            # デフォルト5→1で高速化  
-                                            temperature=0,        # 安定した出力
-                                            vad_filter=True,      # 音声検出フィルター
-                                            vad_parameters=dict(min_silence_duration_ms=500,  # 無音判定時間
-                                                                speech_pad_ms=200)            # 音声前後の余白
-                                            )
+            segments, info = model.get_model().transcribe(filepath,
+                                                language=config.get("language"),
+                                                beam_size=1,           # デフォルト5→1で高速化
+                                                best_of=1,            # デフォルト5→1で高速化  
+                                                temperature=0,        # 安定した出力
+                                                vad_filter=True,      # 音声検出フィルター
+                                                vad_parameters=dict(min_silence_duration_ms=500,  # 無音判定時間
+                                                                    speech_pad_ms=200)            # 音声前後の余白
+                                                )
         
-        # テキストを結合
-        text = " ".join([segment.text for segment in segments])
+            # テキストを結合
+            text = " ".join([segment.text for segment in segments])
 
-        ## ハルシネーションフレーズを除去
-        filtered_text = filter_hallucination(text)
+            ## ハルシネーションフレーズを除去
+            filtered_text = filter_hallucination(text)
 
-        ## ユーザー辞書適応
-        if user_convert_dict_status == True:
-            result = convert_text(filtered_text, user_convert_dict)
-        else:
-            result = filtered_text
+            ## ユーザー辞書適応
+            result = convert_dict.convert_text(filtered_text, convert_dict.get_current())
 
-        # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
-        # 辞書変換後の文字列で判定する(表記揺れを辞書側で吸収できるようにするため)
-        command_executed = False
-        if command_dict_status == True:
-            command_executed = execute_command(result, command_dict)
+            # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
+            # 辞書変換後の文字列で判定する(表記揺れを辞書側で吸収できるようにするため)
+            command_executed = command.execute_command(result, command.get_current())
 
-        if command_executed:
-            print("コマンドを実行")
-            
-        elif result:  # 空文字でない場合のみ貼り付け
-            pyperclip.copy(result)
-            keyboard.send('ctrl+v')
-            print(f"入力: {result[:30]}...") # 最初の30文字を表示
+            if command_executed:
+                print("コマンドを実行")
+                undo_input.forget()  # 直前がコマンドなので、その前の入力は取り消させない
 
-        # 処理済みファイルを削除
-        os.remove(filepath)
-        print(f"削除: {filepath}")
+            elif result:  # 空文字でない場合のみ貼り付け
+                paste.paste(result)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
+                print(f"入力: {result[:30]}...") # 最初の30文字を表示
+                undo_input.remember(result)  # 取り消しのキーで消せるように
+                history.add(result)  # 入力した文章だけを残す(音声実行は残さない)
+
+            # 処理済みファイルを削除
+            os.remove(filepath)
+            print(f"削除: {filepath}")
+        finally:
+            # 途中でエラーが起きても、残りの数は必ず減らす(黄色が消えなくなるのを防ぐ)
+            state_manager.finish_pending()

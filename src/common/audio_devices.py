@@ -2,6 +2,8 @@
 マイクデバイス一覧取得(MMEホスト絞り込み)
 仕様書§11
 
+本体(マイクを名前で探して開く・設定タブの一覧)で使う。
+
 v1の処理を踏襲:
 - MMEホストのみ対象(faster-Whisperとの相性のため16kHz固定)
 - Microsoft Sound Mapper (マッパー/Mapper) を除外
@@ -10,9 +12,12 @@ v1の処理を踏襲:
 - ソートはせず pyaudio の返す順を維持
 """
 
+import ctypes
+from ctypes import wintypes
+
 import pyaudio
 
-import constants as C
+from config_store import SAMPLE_RATE, DEFAULT_DEVICE_LABEL
 
 
 # 文字化け復元テーブル
@@ -35,9 +40,11 @@ def _is_sound_mapper(name):
     return "マッパー" in name or "Mapper" in name
 
 
-def get_mme_input_devices():
+def get_mme_input_devices(p=None):
     """
     MMEホストのマイク入力デバイス一覧を返す。
+    p: 使う PyAudio。渡さなければ、ここで作って終わらせる
+       (PyAudio は作った瞬間の一覧を覚え続けるので、一覧は作り直した PyAudio で取ること)
     - Sound Mapper は除外
     - 文字化けは復元
     - 同名重複は先頭のみ残す
@@ -47,11 +54,13 @@ def get_mme_input_devices():
         list[dict]: [{"index": int, "name": str, "sample_rate": int}, ...]
         取得失敗時は空リスト。
     """
-    try:
-        p = pyaudio.PyAudio()
-    except Exception as e:
-        print(f"pyaudio init failed: {e}")
-        return []
+    own = p is None
+    if own:
+        try:
+            p = pyaudio.PyAudio()
+        except Exception as e:
+            print(f"pyaudio init failed: {e}")
+            return []
     
     devices = []
     seen_names = set()
@@ -94,43 +103,71 @@ def get_mme_input_devices():
                 devices.append({
                     "index": int(info["index"]),
                     "name": device_name,
-                    "sample_rate": C.SAMPLE_RATE,
+                    "sample_rate": SAMPLE_RATE,
                 })
             except Exception:
                 # 個別デバイスの取得失敗はスキップ
                 continue
     finally:
-        p.terminate()
+        if own:
+            p.terminate()
     
     return devices
 
 
+class _WAVEINCAPSW(ctypes.Structure):
+    _fields_ = [
+        ("wMid", wintypes.WORD),
+        ("wPid", wintypes.WORD),
+        ("vDriverVersion", wintypes.UINT),
+        ("szPname", wintypes.WCHAR * 32),
+        ("dwFormats", wintypes.DWORD),
+        ("wChannels", wintypes.WORD),
+        ("wReserved1", wintypes.WORD),
+    ]
+
+
+def get_live_input_names():
+    """
+    今つながっているマイクの名前を、Windows(MME)に直接聞いて返す。
+    PyAudio は作った瞬間の一覧を覚え続けるため、起動中の抜き差しがわからない。
+    こちらは聞くたびに今の状態を返す。名前は PyAudio(MME)と同じもの。
+    """
+    winmm = ctypes.windll.winmm
+    names = []
+    for i in range(winmm.waveInGetNumDevs()):
+        caps = _WAVEINCAPSW()
+        if winmm.waveInGetDevCapsW(i, ctypes.byref(caps), ctypes.sizeof(caps)) != 0:
+            continue
+        if caps.szPname not in names:
+            names.append(caps.szPname)
+    return names
+
+
 def get_device_name_list():
     """
-    UI表示用のデバイス名リストを返す。
+    UI表示用のデバイス名リストを返す(今つながっているもの)。
     先頭に「既定のデバイスに自動接続」を固定で追加する。
     
     Returns:
         list[str]: デバイス名の配列
     """
-    devices = get_mme_input_devices()
-    names = [C.DEFAULT_DEVICE_LABEL]
-    names.extend(d["name"] for d in devices)
-    return names
+    return [DEFAULT_DEVICE_LABEL] + get_live_input_names()
 
 
-def find_device_by_name(name):
+def find_device_by_name(name, p=None):
     """
     デバイス名から該当するデバイス情報を返す。
+    p: 探すのに使う PyAudio(get_mme_input_devices と同じ)
     「既定のデバイスに自動接続」の場合は None を返す(index=null扱い)。
     
     Returns:
         dict or None: {"index": int, "name": str, "sample_rate": int}
     """
-    if name == C.DEFAULT_DEVICE_LABEL:
+    if name == DEFAULT_DEVICE_LABEL:
         return None
     
-    devices = get_mme_input_devices()
+    devices = get_mme_input_devices(p)
     for d in devices:
         if d["name"] == name:
             return d

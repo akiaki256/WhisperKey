@@ -4,6 +4,14 @@ import sys
 # src/common を import できるようにする(exe化後は PyInstaller の --paths で同梱済み)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common"))
 
+# Hugging Face(モデルのダウンロード)の決まりごと。ライブラリが読み込まれる前に決めないと効かない
+# - Xet を使わない: 途中のデータをインストール先の外(ユーザーの .cache)に貯めず、進み具合も数えられるように
+# - 進捗バーを出さない: exe はコンソールの無い形でビルドしているので、書き込む先が無くてエラーになる
+# - シンボリックリンクが使えない警告を出さない(Windows では実物を置く形で問題なく動く)
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
 # ========================================================
 # 起動中インジケーター表示(重いimportより前、最優先)
 # ========================================================
@@ -87,12 +95,17 @@ from queue import Queue
 
 from config import load_config
 from cleanup import cleanup_temp
-from model import load_model
+import model
+import model_store
 from key_shortcut import MainStateManager
 from audio import recording_function
 from transcribe import whisper_function
 from gui_indicator import IndicatorWindow
 import tray_icon
+import main_window
+import history
+import undo_input
+import sounds
 
 
 # ========================================================
@@ -103,17 +116,37 @@ state_manager = MainStateManager()
 cleanup_temp()  # 残っていたtemp_ファイルを消去
 
 settings = load_config()  # config.jsonを読み込む
+history.load()  # 入力履歴(history.json)を読み込む
 
 ## faster-Whisperのモデル読み込み
-model = load_model(settings["model_size"])
+## 選ばれているモデルが手元に無ければ読み込まずに起動する(窓がモデルタブを開いて、ダウンロードしてもらう)
+## 手元にあるのに読めない(壊れている、CUDA が無いなど)ときは、エラーを出して終了する
+model_missing = model_store.local_path(settings["model_size"]) is None
+if model_missing:
+    print(f"モデル '{settings['model_size']}' が手元にありません。ダウンロードを待ちます")
+else:
+    try:
+        model.set_model(model.load_model(settings["model_size"]), settings["model_size"])
+    except model.ModelLoadError as e:
+        startup.close()
+        model.exit_with_load_error(e)
 
-## shortcut_key押下で聞き取りモード切り替え
-state_manager.start_listener(settings["shortcut_key"])
+## ショートカットキーの登録(音声入力・入力モード切り替え・直前の入力を取り消す)
+## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)
+state_manager.set_handler("undo", undo_input.undo)
+state_manager.can_start = model.is_ready
+state_manager.on_start_blocked = lambda: main_window.show("model")  # モデルタブでダウンロードしてもらう
+shortcut_errors = state_manager.start_listener({
+    "toggle": settings["shortcut_key"],
+    "undo": settings["undo_key"],
+    "mode": settings["mode_key"],
+})
 
 print("動作準備完了")
 
 # 起動中インジケーターを閉じる(ここで全準備完了)
 startup.close()
+sounds.play("startup")  # 準備ができたことを音で知らせる
 
 
 # ========================================================
@@ -121,29 +154,35 @@ startup.close()
 # ========================================================
 wav_queue = Queue()
 
-# 通常インジケーター(録音中の緑丸)を作成
-indicator = IndicatorWindow()
+## インジケーター(録音中の緑丸)を専用スレッドで起動
+## メインスレッドは本体の窓(pywebview)が使うため。
+## tkinter の窓の作成から mainloop までを、すべてこのスレッドの中で行う
+def run_indicator():
+    IndicatorWindow(settings["indicator_x"], settings["indicator_y"]).run()
+
+threading.Thread(target=run_indicator, name="indicator", daemon=True).start()
 
 ## 録音スレッド開始
 threading.Thread(
     target=recording_function,
-    args=(
-        settings["volume_threshold"],
-        settings["silence_duration"],
-        settings["audio_device_index"],
-        settings["audio_device_sample_rate"],
-        wav_queue
-    )
+    args=(wav_queue,)
 ).start()
 
 ## 文字起こしスレッド開始
 threading.Thread(
     target=whisper_function,
-    args=(model, settings["language"], wav_queue)
+    args=(wav_queue,)
 ).start()
 
 ## システムトレイを別スレッドで起動
 tray_icon.start_tray_in_background()
 
-## インジケーター表示(mainloop)
-indicator.run()
+## 本体の窓を表示(閉じられるまでここで待つ)
+main_window.create(
+    shortcut_errors={action: error[0] for action, error in shortcut_errors.items()},
+)
+main_window.start()
+
+## 窓の×で閉じられたら、アプリごと終了する
+## 録音・文字起こしのスレッドは止まらないので os._exit で終わらせる
+os._exit(0)
