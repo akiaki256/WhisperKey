@@ -8,10 +8,7 @@ cffi==2.1.1
 click==8.3.2
 clr_loader==0.3.1
 colorama==0.4.6
-CTkMessagebox==2.7
 ctranslate2==4.7.1
-customtkinter==5.2.2
-darkdetect==0.8.0
 faster-whisper==1.2.1
 filelock==3.28.0
 flatbuffers==25.12.19

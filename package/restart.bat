@@ -7,8 +7,8 @@ REM   Terminates and relaunches the WhisperKey main process.
 REM   Used by any component that needs to restart WhisperKey.
 REM 
 REM Callers:
-REM   - Config.exe: after saving settings
 REM   - WhisperKey.exe: from tray menu "Restart"
+REM   - WhisperKey.exe: "Restart" button after changing the model
 REM =====================================================
 
 REM Kill main process

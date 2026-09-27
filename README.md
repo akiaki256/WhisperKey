@@ -71,23 +71,25 @@ WhisperKey/
 ├── src/
 │   ├── app/                    # 本体(WhisperKey.exe)
 │   │   ├── main.py             # エントリーポイント
+│   │   ├── main_window.py      # 本体のウィンドウ(pywebview)と、画面から呼ばれる窓口
 │   │   ├── audio.py            # 録音処理(別スレッド)
 │   │   ├── transcribe.py       # Whisperによる文字起こし(別スレッド)
 │   │   ├── model.py            # Whisperモデルのロード
-│   │   ├── key_shortcut.py     # グローバルホットキー管理
+│   │   ├── key_shortcut.py     # グローバルホットキー管理(RegisterHotKey)
 │   │   ├── gui_indicator.py    # 録音中を示すインジケーター
 │   │   ├── startup_indicator.py# 起動中インジケーター
 │   │   ├── tray_icon.py        # システムトレイ
-│   │   ├── command.py          # コマンド実行機能
-│   │   ├── convert_dict.py     # 辞書変換機能
-│   │   ├── config.py           # 設定ファイル読込
+│   │   ├── command.py          # 音声実行(command_dict.csv)
+│   │   ├── convert_dict.py     # 音声辞書(convert_dict.csv)
+│   │   ├── config.py           # 起動中の「今の設定」(変えた瞬間に効かせる)
 │   │   ├── cleanup.py          # 一時ファイル削除
 │   │   ├── cuda_check.py       # GPU版の起動時CUDAチェック
 │   │   └── error_dialog.py     # エラーダイアログ
-│   ├── config_app/             # 設定GUIアプリ(Config.exe)
-│   └── common/                 # 本体と設定GUIの共通モジュール
+│   ├── ui/                     # 本体のウィンドウの画面(HTML / CSS / JS)
+│   └── common/                 # 共通モジュール
 │       ├── paths.py            # ファイルの場所の集約
 │       ├── config_store.py     # 設定(config.json)の初期値・範囲・読み書き
+│       ├── audio_devices.py    # マイクの一覧
 │       └── edition.py          # CPU版 / GPU版の判定
 ├── assets/                     # アイコン等のリソース
 ├── package/                    # 配布フォルダに同梱するファイル(空の辞書・restart.bat)
@@ -101,8 +103,9 @@ WhisperKey/
 - **音声認識**: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) / [CTranslate2](https://github.com/OpenNMT/CTranslate2)
 - **モデル**: OpenAI Whisper (tiny / base / small / medium / large-v3)
 - **オーディオ入力**: PyAudio
-- **GUIフレームワーク**: Tkinter / CustomTkinter
-- **キーボード入出力**: keyboard ライブラリ
+- **GUI**: pywebview(本体のウィンドウ。画面は HTML / CSS / JS) / Tkinter(インジケーター)
+- **ショートカットキー**: Windows の RegisterHotKey
+- **貼り付け**: keyboard ライブラリ
 - **システムトレイ**: pystray
 - **exe化**: PyInstaller
 - **インストーラー**: Inno Setup

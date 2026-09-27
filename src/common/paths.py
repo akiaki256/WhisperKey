@@ -1,6 +1,6 @@
 """
 パスの集約モジュール
-本体・設定画面の両方から参照する。ファイルの場所はすべてここで決める。
+本体の各係から参照する。ファイルの場所はすべてここで決める。
 
 - APP_DIR: ユーザーが書き換えるファイル(設定・辞書・モデル・一時ファイル)の置き場所
     exe化後: exeと同じフォルダ(インストール先)
@@ -39,10 +39,6 @@ TEMP_DIR = os.path.join(APP_DIR, "temp")
 
 # 配布フォルダ内の実行ファイル(exe化後のみ使用)
 RESTART_BAT = os.path.join(APP_DIR, "restart.bat")
-CONFIG_EXE = os.path.join(APP_DIR, "Config.exe")
-
-# 開発中に設定画面を起動するスクリプト
-CONFIG_SCRIPT = os.path.join(PROJECT_ROOT, "src", "config_app", "main_config.py")
 
 
 def asset(name):

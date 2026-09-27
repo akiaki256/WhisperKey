@@ -29,30 +29,6 @@ def _open_config(icon, item):
     main_window.show("settings")
 
 
-def open_config_app():
-    """今の設定画面(設定exeまたは設定スクリプト)を起動する。設定タブの移植が終わるまでのつなぎ"""
-    # コンソールウィンドウを出さないフラグ
-    creation_flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
-    
-    try:
-        if getattr(sys, "frozen", False):
-            # exe化後: 設定exeを起動
-            subprocess.Popen(
-                [paths.CONFIG_EXE],
-                creationflags=creation_flags,
-                close_fds=True,
-            )
-        else:
-            # 開発中: pythonで設定スクリプトを起動
-            subprocess.Popen(
-                [sys.executable, paths.CONFIG_SCRIPT],
-                creationflags=creation_flags,
-                close_fds=True,
-            )
-    except Exception as e:
-        print(f"設定画面の起動に失敗: {e}")
-
-
 def _restart(icon, item):
     """「再起動」"""
     restart_app()
@@ -62,7 +38,7 @@ def restart_app():
     """restart.bat を起動してプロセスを再起動する。
 
     ショートカットキーが効かなくなる症状への対処用。
-    設定画面でモデルを変えたあとの再起動にも使う。
+    モデルタブでモデルを変えたあとの再起動にも使う。
     restart.bat 側で taskkill → sleep → WhisperKey.exe 起動を実行するため、
     自プロセスは taskkill で強制終了される(os._exit は呼ばない)。
     

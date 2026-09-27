@@ -41,16 +41,11 @@ BG_DARK = "#202020"
 
 
 def _model_list():
-    """モデルの一覧を、名前と説明に分けて返す
-
-    config_store のラベルは "large-v3: 最高精度(処理はやや重い)" の形(今の設定画面がそのまま使うため)。
-    Config.exe を外したら、config_store の側で名前と説明を分けて持つようにする
-    """
-    models = []
-    for value, label in config_store.model_choices():
-        name, _, desc = label.partition(": ")
-        models.append({"value": value, "name": name, "desc": desc})
-    return models
+    """モデルの一覧 [{"value", "name", "desc"}, ...](モデルタブのカード用)"""
+    return [
+        {"value": value, "name": name, "desc": desc}
+        for value, name, desc in config_store.model_choices()
+    ]
 
 
 def _on_config_changed(changed):
@@ -88,10 +83,6 @@ class Api:
 
     def close(self):
         _window.destroy()
-
-    def open_legacy_config(self):
-        """今の設定画面(Config.exe)を開く。設定タブの移植が終わるまでのつなぎ"""
-        tray_icon.open_config_app()
 
     def get_settings(self):
         """設定タブを作るのに必要なものをまとめて返す(今の値・範囲・選択肢)"""

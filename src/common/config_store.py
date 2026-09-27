@@ -1,6 +1,6 @@
 """
 設定(config.json)の保管係
-本体と設定画面の両方から使う。初期値・選択肢・範囲はすべてここで持つ。
+本体の各係と画面(設定タブなど)から使う。初期値・選択肢・範囲はすべてここで持つ。
 
 - load(): ファイルを読み、初期値の上に重ね、おかしな値を直して返す
     ファイルが無ければ初期値で作る。書式が壊れていれば ConfigError
@@ -36,16 +36,17 @@ SAMPLE_RATE = 16000
 
 DEFAULT_DEVICE_LABEL = "既定のデバイスに自動接続"
 
-# 形式: [(保存値, 表示ラベル), ...]
+# 選択肢の形式: [(保存値, 表示ラベル), ...]
+# モデルだけは [(保存値, 名前, 説明), ...](モデルタブで名前を大きく、説明を下に小さく見せる)
 MODEL_CHOICES_CPU = [
-    ("tiny", "tiny: 最速・軽量(精度は低め)"),
-    ("base", "base: バランス型(速度と精度の中間)"),
-    ("small", "small: 高精度(処理はやや重い)"),
+    ("tiny", "tiny", "最速・軽量(精度は低め)"),
+    ("base", "base", "バランス型(速度と精度の中間)"),
+    ("small", "small", "高精度(処理はやや重い)"),
 ]
 MODEL_CHOICES_GPU = [
-    ("small", "small: 高速・軽量"),
-    ("medium", "medium: バランス型(推奨)"),
-    ("large-v3", "large-v3: 最高精度(処理はやや重い)"),
+    ("small", "small", "高速・軽量"),
+    ("medium", "medium", "バランス型(推奨)"),
+    ("large-v3", "large-v3", "最高精度(処理はやや重い)"),
 ]
 MODEL_DEFAULT_CPU = "base"
 MODEL_DEFAULT_GPU = "medium"
@@ -131,7 +132,7 @@ def _fix_silence(v, default):
 
 
 def _fix_choice(v, choices, default):
-    valid = [tag for tag, _ in choices]
+    valid = [choice[0] for choice in choices]  # 先頭が保存値(モデルは説明つきの3つ組なので)
     return v if v in valid else default
 
 
