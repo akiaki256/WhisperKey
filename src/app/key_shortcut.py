@@ -16,6 +16,8 @@ import threading
 import time
 import winsound
 
+import config
+
 _user32 = ctypes.WinDLL("user32", use_last_error=True)
 _user32.RegisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.UINT, wintypes.UINT]
 _user32.RegisterHotKey.restype = wintypes.BOOL
@@ -137,7 +139,9 @@ class MainStateManager():
             cls._instance.state = "stop"
             cls._instance._pending = 0
             cls._instance._pending_lock = threading.Lock()
-            cls._instance._handlers = {"toggle": cls._instance.toggle_state}
+            # 役割のキーが押されたとき / 離されたときの処理
+            cls._instance._handlers = {"toggle": cls._instance.press_toggle}
+            cls._instance._release_handlers = {"toggle": cls._instance.release_toggle}
         return cls._instance
 
     def get_state(self):
@@ -154,23 +158,50 @@ class MainStateManager():
     def is_transcribing(self):
         return self._pending > 0
 
-    def toggle_state(self):
-        if self.state == "stop":
-            self.state = "start"
+    def set_state(self, new_state):
+        """録音のオン("start")/オフ("stop")を変えて、音で知らせる。同じなら何もしない"""
+        if new_state == self.state:
+            return
+        self.state = new_state
+        if new_state == "start":
             print("聞き取りモード：スタート")
             winsound.Beep(1200, 200) # Hz, ms
         else:
-            self.state = "stop"
             print("聞き取りモード：ストップ")
             winsound.Beep(250, 200) # Hz, ms
 
+    def toggle_state(self):
+        self.set_state("start" if self.state == "stop" else "stop")
         return self.state
+
+    # 入力モードの切り替えキー
+    # 切り替えモード: 押すたびにオン/オフ
+    # プッシュトゥトーク(push_to_talk): 押したらオン、離したらオフ
+    #   離したところまでの音声は、録音の係(audio.py)がすぐ文字起こしに回す
+    def press_toggle(self):
+        if config.get("push_to_talk"):
+            self.set_state("start")
+        else:
+            self.toggle_state()
+
+    def release_toggle(self):
+        if config.get("push_to_talk"):
+            self.set_state("stop")
 
     # ---- ショートカットキー(役割ごと) ----
 
     def set_handler(self, action, fn):
-        """役割のキーが押されたときに呼ぶ処理を決める(toggle は toggle_state が最初から入っている)"""
+        """役割のキーが押されたときに呼ぶ処理を決める(toggle は press_toggle が最初から入っている)"""
         self._handlers[action] = fn
+
+    def _call_handler(self, handlers, action):
+        handler = handlers.get(action)
+        try:
+            if handler:
+                handler()
+        except Exception as e:
+            # ここで例外が抜けると待ち受けが止まり、ショートカットが効かなくなるため握りつぶす
+            print(f"ショートカット({action})の処理でエラー: {e}")
 
     def start_listener(self, keys):
         """
@@ -232,14 +263,9 @@ class MainStateManager():
                     action = actions_by_id.get(msg.wParam)
                     if action not in vks:
                         continue
-                    handler = self._handlers.get(action)
-                    try:
-                        if handler:
-                            handler()
-                    except Exception as e:
-                        # ここで例外が抜けると待ち受けが止まり、ショートカットが効かなくなるため握りつぶす
-                        print(f"ショートカット({action})の処理でエラー: {e}")
+                    self._call_handler(self._handlers, action)
                     _wait_for_release(vks[action])
+                    self._call_handler(self._release_handlers, action)
 
                 elif msg.message == WM_APP_COMMAND:
                     command, action, key_str = self._command

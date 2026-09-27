@@ -33,8 +33,9 @@
 
         <div class="card">
           <div class="card-text">
-            <label class="card-title" for="btn-shortcut">入力モードの切り替え</label>
-            <div class="card-desc">録音のオン/オフを切り替えます</div>
+            <div class="card-title">入力モードの切り替え</div>
+            <!-- プッシュトゥトークかどうかで、settings.js が説明を書き換える -->
+            <div class="card-desc" id="toggle-key-desc">録音のオン/オフを切り替えます</div>
           </div>
           <div class="card-control"><button class="shortcut-button" data-action="toggle"></button></div>
         </div>
@@ -190,6 +191,18 @@
         <!-- 変えた瞬間に保存され、効く(モデルだけは再起動のあと) -->
         <h1>設定</h1>
         <p id="settings-error" class="infobar error" hidden></p>
+
+        <h2>入力モード</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="push-to-talk">プッシュトゥトーク</label>
+            <div class="card-desc">オンにすると、入力モードの切り替えキーを押している間だけ録音します</div>
+          </div>
+          <div class="card-control">
+            <span id="push-to-talk-label" class="toggle-label"></span>
+            <input type="checkbox" id="push-to-talk" class="toggle">
+          </div>
+        </div>
 
         <h2>録音</h2>
         <div class="card">

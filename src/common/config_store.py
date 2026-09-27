@@ -105,6 +105,8 @@ def defaults():
         "audio_device_sample_rate": SAMPLE_RATE,
         "shortcut_key": SHORTCUT_DEFAULT,
         "undo_key": UNDO_KEY_DEFAULT,
+        # True なら入力モードの切り替えキーを押している間だけ録音する(False は押すたびにオン/オフ)
+        "push_to_talk": False,
         "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
         # インジケーターの位置(画面の左上からのピクセル)。つまんで動かすと保存される
@@ -191,6 +193,7 @@ def normalize(raw):
         "audio_device_sample_rate": _fix_positive_int(merged["audio_device_sample_rate"], d["audio_device_sample_rate"]),
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
         "undo_key": _fix_optional_key(merged["undo_key"], d["undo_key"]),
+        "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
         "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),

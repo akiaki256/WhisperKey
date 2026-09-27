@@ -42,7 +42,7 @@ SHORTCUT_LABELS = {"toggle": "入力モードの切り替え", "undo": "直前�
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
-    "history_enabled", "history_limit",
+    "history_enabled", "history_limit", "push_to_talk",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
@@ -144,6 +144,8 @@ class Api:
             values = config.update({key: value})
             if key == "history_limit":
                 history.trim(values["history_limit"])  # あふれた古い履歴を消す(画面で確認済み)
+            if key == "push_to_talk" and values["push_to_talk"]:
+                _state_manager.set_state("stop")  # 録音オンのまま切り替えても、ここから「押している間だけ」にそろえる
         except OSError as e:
             return {"error": f"設定の保存に失敗しました: {e}"}
         return {

@@ -138,6 +138,9 @@ async function loadSettings() {
       startupShortcutMessage(s.shortcut_labels[action], kind, s.shortcuts[action])).join("\n"));
   }
 
+  // 入力モード
+  showPushToTalk(s.values.push_to_talk);
+
   // マイク
   bindSelect(document.getElementById("mic-select"), "audio_device_name",
     micChoices(s.mics, s.values.audio_device_name), s.values.audio_device_name);
@@ -168,7 +171,24 @@ function onSettingsChanged(changed) {
   if ("audio_device_name" in changed) {
     refreshMics(changed.audio_device_name);
   }
+  if ("push_to_talk" in changed) {
+    showPushToTalk(changed.push_to_talk);
+  }
 }
+
+// プッシュトゥトークのスイッチと、ショートカットタブの「入力モードの切り替え」の説明をそろえる
+function showPushToTalk(enabled) {
+  const toggle = document.getElementById("push-to-talk");
+  toggle.checked = enabled;
+  document.getElementById("push-to-talk-label").textContent = enabled ? "オン" : "オフ";
+  document.getElementById("toggle-key-desc").textContent =
+    enabled ? "押している間だけ録音します(プッシュトゥトーク)" : "録音のオン/オフを切り替えます";
+}
+
+document.getElementById("push-to-talk").addEventListener("change", async (e) => {
+  const value = await saveSetting("push_to_talk", e.target.checked);
+  if (value !== null) showPushToTalk(value);
+});
 
 document.getElementById("btn-restart").addEventListener("click", () => {
   window.pywebview.api.restart();
