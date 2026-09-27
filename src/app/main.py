@@ -93,6 +93,7 @@ from audio import recording_function
 from transcribe import whisper_function
 from gui_indicator import IndicatorWindow
 import tray_icon
+import main_window
 
 
 # ========================================================
@@ -121,8 +122,13 @@ startup.close()
 # ========================================================
 wav_queue = Queue()
 
-# 通常インジケーター(録音中の緑丸)を作成
-indicator = IndicatorWindow()
+## インジケーター(録音中の緑丸)を専用スレッドで起動
+## メインスレッドは本体の窓(pywebview)が使うため。
+## tkinter の窓の作成から mainloop までを、すべてこのスレッドの中で行う
+def run_indicator():
+    IndicatorWindow().run()
+
+threading.Thread(target=run_indicator, name="indicator", daemon=True).start()
 
 ## 録音スレッド開始
 threading.Thread(
@@ -145,5 +151,10 @@ threading.Thread(
 ## システムトレイを別スレッドで起動
 tray_icon.start_tray_in_background()
 
-## インジケーター表示(mainloop)
-indicator.run()
+## 本体の窓を表示(閉じられるまでここで待つ)
+main_window.create()
+main_window.start()
+
+## 窓の×で閉じられたら、アプリごと終了する
+## 録音・文字起こしのスレッドは止まらないので os._exit で終わらせる
+os._exit(0)

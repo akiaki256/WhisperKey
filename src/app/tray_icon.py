@@ -4,6 +4,7 @@
 - 右クリックメニュー: 「設定を開く」「再起動」「終了」の3項目
 - ツールチップ: "WhisperKey"
 - アイコン: assets/stray_icon.png
+- 「設定を開く」は本体の窓を設定タブで前に出す(最小化されていれば元に戻す)
 - 「再起動」は restart.bat を起動してプロセス再起動
 - 「終了」は os._exit(0) で即終了
 """
@@ -16,6 +17,7 @@ import pystray
 from PIL import Image
 
 import paths
+import main_window
 
 
 # アイコンファイルパス
@@ -23,7 +25,12 @@ _ICON_PATH = paths.asset("stray_icon.png")
 
 
 def _open_config(icon, item):
-    """「設定を開く」: 設定exeまたは設定スクリプトを起動"""
+    """「設定を開く」: 本体の窓を設定タブで前に出す"""
+    main_window.show("settings")
+
+
+def open_config_app():
+    """今の設定画面(設定exeまたは設定スクリプト)を起動する。設定タブの移植が終わるまでのつなぎ"""
     # コンソールウィンドウを出さないフラグ
     creation_flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
     
@@ -119,7 +126,7 @@ def _build_icon():
 def start_tray_in_background():
     """
     システムトレイを別スレッドで起動する。
-    メインスレッドは tkinter の mainloop でブロックする想定なので、
+    メインスレッドは本体の窓(pywebview)でブロックする想定なので、
     pystray を daemon スレッドで動かす。
     """
     icon = _build_icon()

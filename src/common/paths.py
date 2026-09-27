@@ -8,6 +8,9 @@
 - ASSETS_DIR: exeに同梱する素材(アイコン)の置き場所
     exe化後: PyInstallerの展開先(sys._MEIPASS)/assets
     開発中: プロジェクト直下の assets
+- UI_DIR: 本体のウィンドウの画面(HTML/CSS/JS)の置き場所
+    exe化後: PyInstallerの展開先(sys._MEIPASS)/ui
+    開発中: src/ui
 """
 
 import os
@@ -21,9 +24,11 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if FROZEN:
     APP_DIR = os.path.dirname(sys.executable)
     ASSETS_DIR = os.path.join(sys._MEIPASS, "assets")
+    UI_DIR = os.path.join(sys._MEIPASS, "ui")
 else:
     APP_DIR = os.path.join(PROJECT_ROOT, "_local", "dev_data")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
+    UI_DIR = os.path.join(PROJECT_ROOT, "src", "ui")
 
 # ユーザーデータ
 CONFIG_JSON = os.path.join(APP_DIR, "config.json")

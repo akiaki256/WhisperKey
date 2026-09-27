@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WhisperKey</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 仮の画面(骨組みの動作確認用)。見た目はあとで作り直す -->
+  <header>
+    <!-- pywebview-drag-region をつけた部分だけ、つまんで窓を動かせる -->
+    <div class="title pywebview-drag-region">WhisperKey</div>
+    <button id="btn-minimize" title="最小化">&#x2013;</button>
+    <button id="btn-close" title="終了">&#x2715;</button>
+  </header>
+
+  <nav>
+    <button data-tab="shortcuts">ショートカット</button>
+    <button data-tab="history">履歴</button>
+    <button data-tab="dict">辞書</button>
+    <button data-tab="settings">設定</button>
+  </nav>
+
+  <main>
+    <section id="tab-shortcuts">ショートカット一覧(これから)</section>
+    <section id="tab-history">入力履歴(これから)</section>
+    <section id="tab-dict">辞書(これから)</section>
+    <section id="tab-settings">
+      <p>設定(これから)</p>
+      <button id="btn-legacy-config">今の設定画面を開く</button>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

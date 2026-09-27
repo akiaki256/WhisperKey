@@ -1,0 +1,37 @@
+/* 仮の見た目(骨組みの動作確認用) */
+body {
+  margin: 0;
+  font-family: "Meiryo UI", sans-serif;
+  user-select: none;
+}
+
+header {
+  display: flex;
+  background: #333;
+  color: #fff;
+}
+
+header .title {
+  flex: 1;
+  padding: 8px 12px;
+}
+
+header button {
+  width: 44px;
+  border: none;
+  background: none;
+  color: #fff;
+}
+
+nav button.active {
+  font-weight: bold;
+}
+
+main section {
+  display: none;
+  padding: 12px;
+}
+
+main section.active {
+  display: block;
+}
