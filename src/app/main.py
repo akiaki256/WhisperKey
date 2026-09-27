@@ -134,8 +134,6 @@ threading.Thread(target=run_indicator, name="indicator", daemon=True).start()
 threading.Thread(
     target=recording_function,
     args=(
-        settings["volume_threshold"],
-        settings["silence_duration"],
         settings["audio_device_index"],
         settings["audio_device_sample_rate"],
         wav_queue
@@ -145,14 +143,14 @@ threading.Thread(
 ## 文字起こしスレッド開始
 threading.Thread(
     target=whisper_function,
-    args=(model, settings["language"], wav_queue)
+    args=(model, wav_queue)
 ).start()
 
 ## システムトレイを別スレッドで起動
 tray_icon.start_tray_in_background()
 
 ## 本体の窓を表示(閉じられるまでここで待つ)
-main_window.create()
+main_window.create(loaded_model=settings["model_size"])
 main_window.start()
 
 ## 窓の×で閉じられたら、アプリごと終了する

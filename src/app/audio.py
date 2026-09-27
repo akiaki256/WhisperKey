@@ -3,6 +3,7 @@ import sys
 import pyaudio
 import wave
 import numpy as np
+import config
 from key_shortcut import MainStateManager
 from error_dialog import show_error
 from paths import TEMP_DIR
@@ -20,10 +21,10 @@ if not os.path.exists(temp_dir):
 
 
 # マイクから音声をキャプチャ
-def recording_function(threshold, duration, device_index, sample_rate, wav_queue):
+def recording_function(device_index, sample_rate, wav_queue):
     """
-    threshold: 音量の閾値
-    duration: 無音判定の秒数
+    音量の閾値と無音判定の秒数は、画面で変えたらすぐ効くように、毎回 config から読む
+
     device_index: マイクデバイスのindex（Noneなら既定デバイス）
     sample_rate: サンプルレート（通常16000Hz）
     wav_queue: Whisperスレッドと共有するキュー
@@ -110,6 +111,8 @@ def recording_function(threshold, duration, device_index, sample_rate, wav_queue
         volume = np.sqrt(np.mean(audio_data**2))  # 無音を判断するための指数になるvolumeを定義
 
         listening = state_manager.get_state() == "start"
+        threshold = config.get("volume_threshold")
+        duration = config.get("silence_duration")
 
         if state == "waiting":
             if listening and volume > threshold:

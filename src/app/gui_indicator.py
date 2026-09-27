@@ -19,6 +19,7 @@ import ctypes
 from ctypes import wintypes
 import tkinter as tk
 
+import config
 import config_store
 from key_shortcut import MainStateManager
 
@@ -115,10 +116,7 @@ class IndicatorWindow:
 
     def save_position(self, x, y):
         try:
-            config = config_store.load()
-            config["indicator_x"] = x
-            config["indicator_y"] = y
-            config_store.save(config)
+            config.update({"indicator_x": x, "indicator_y": y})
         except Exception as e:
             # 保存できなくても、今の起動中は動かした位置のまま使える
             print(f"インジケーターの位置の保存に失敗: {e}")

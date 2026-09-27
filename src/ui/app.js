@@ -1,4 +1,4 @@
-// 仮の画面の動き(骨組みの動作確認用)
+// 窓全体の動き(ヘッダーとタブの切り替え)。各タブの中身は、タブごとの js に書く
 
 // タブを切り替える。Python 側(main_window.show)からも呼ばれる
 function showTab(name) {
@@ -20,10 +20,6 @@ document.getElementById("btn-minimize").addEventListener("click", () => {
 
 document.getElementById("btn-close").addEventListener("click", () => {
   window.pywebview.api.close();
-});
-
-document.getElementById("btn-legacy-config").addEventListener("click", () => {
-  window.pywebview.api.open_legacy_config();
 });
 
 showTab("shortcuts");

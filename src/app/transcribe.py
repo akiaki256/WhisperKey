@@ -1,6 +1,7 @@
 import os
 import pyperclip
 import keyboard
+import config
 from convert_dict import load_convert_dict, convert_text
 from command import load_command_dict, execute_command
 from key_shortcut import MainStateManager
@@ -33,10 +34,11 @@ def filter_hallucination(text):
     return text
 
 #faster-whisperに送信してテキスト化して貼り付け
-def whisper_function(model, language, wav_queue):
+def whisper_function(model, wav_queue):
     """
+    言語は、画面で変えたらすぐ効くように、毎回 config から読む
+
     model: WhisperModelのインスタンス
-    language: 言語設定
     wav_queue: 音声ファイルのキュー
     """
 
@@ -66,7 +68,7 @@ def whisper_function(model, language, wav_queue):
             print(f"処理開始: {filepath}")
 
             segments, info = model.transcribe(filepath,
-                                                language=language,
+                                                language=config.get("language"),
                                                 beam_size=1,           # デフォルト5→1で高速化
                                                 best_of=1,            # デフォルト5→1で高速化  
                                                 temperature=0,        # 安定した出力

@@ -6,31 +6,111 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- 仮の画面(骨組みの動作確認用)。見た目はあとで作り直す -->
-  <header>
-    <!-- pywebview-drag-region をつけた部分だけ、つまんで窓を動かせる -->
-    <div class="title pywebview-drag-region">WhisperKey</div>
-    <button id="btn-minimize" title="最小化">&#x2013;</button>
-    <button id="btn-close" title="終了">&#x2715;</button>
+  <!-- タイトルバー(枠なしの窓なので自作)。pywebview-drag-region の部分だけ、つまんで窓を動かせる -->
+  <header class="titlebar">
+    <div class="titlebar-title pywebview-drag-region">WhisperKey</div>
+    <button class="caption-button" id="btn-minimize" title="最小化"><span class="icon">&#xE921;</span></button>
+    <button class="caption-button close" id="btn-close" title="終了"><span class="icon">&#xE8BB;</span></button>
   </header>
 
-  <nav>
-    <button data-tab="shortcuts">ショートカット</button>
-    <button data-tab="history">履歴</button>
-    <button data-tab="dict">辞書</button>
-    <button data-tab="settings">設定</button>
-  </nav>
+  <div class="layout">
+    <!-- 左のタブ。アイコンは Windows の Segoe Fluent Icons の文字 -->
+    <nav>
+      <button data-tab="shortcuts"><span class="icon">&#xE765;</span>ショートカット</button>
+      <button data-tab="history"><span class="icon">&#xE81C;</span>入力履歴</button>
+      <button data-tab="dict"><span class="icon">&#xE82D;</span>辞書</button>
+      <button data-tab="model"><span class="icon">&#xE950;</span>モデル</button>
+      <button data-tab="settings"><span class="icon">&#xE713;</span>設定</button>
+    </nav>
 
-  <main>
-    <section id="tab-shortcuts">ショートカット一覧(これから)</section>
-    <section id="tab-history">入力履歴(これから)</section>
-    <section id="tab-dict">辞書(これから)</section>
-    <section id="tab-settings">
-      <p>設定(これから)</p>
-      <button id="btn-legacy-config">今の設定画面を開く</button>
-    </section>
-  </main>
+    <main>
+      <section id="tab-shortcuts">
+        <h1>ショートカット</h1>
+        <div class="card"><div class="card-text"><div class="card-desc">ショートカット一覧(これから)</div></div></div>
+      </section>
+
+      <section id="tab-history">
+        <h1>入力履歴</h1>
+        <div class="card"><div class="card-text"><div class="card-desc">入力履歴(これから)</div></div></div>
+      </section>
+
+      <section id="tab-dict">
+        <h1>辞書</h1>
+        <div class="card"><div class="card-text"><div class="card-desc">辞書(これから)</div></div></div>
+      </section>
+
+      <!-- 声をどう聞き取って言葉にするか(言語・モデル)。保存のしくみは設定タブと同じ(settings.js) -->
+      <section id="tab-model">
+        <h1>モデル</h1>
+        <p id="model-error" class="infobar error" hidden></p>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="language-select">認識言語</label>
+            <div class="card-desc">話す言葉を選びます</div>
+          </div>
+          <div class="card-control"><select id="language-select"></select></div>
+        </div>
+
+        <h2>使用するモデル</h2>
+        <p class="section-desc">大きいモデルほど正確ですが、処理が重くなります</p>
+        <!-- settings.js がモデルの数だけカードを作る -->
+        <div id="model-list"></div>
+        <div id="restart-notice" class="infobar" hidden>
+          <span class="icon">&#xE946;</span>
+          <span class="infobar-text">モデルの変更は、再起動したあとに反映されます</span>
+          <button id="btn-restart" class="accent">再起動</button>
+        </div>
+      </section>
+
+      <section id="tab-settings">
+        <!-- 変えた瞬間に保存され、効く(モデルだけは再起動のあと) -->
+        <h1>設定</h1>
+        <p id="settings-error" class="infobar error" hidden></p>
+
+        <h2>録音</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="volume-range">音量しきい値</label>
+            <div class="card-desc">録音を開始する音量レベル。値を上げるほど静かな音を拾わなくなります</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="volume-range">
+            <input type="number" id="volume-number">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="silence-range">無音時間</label>
+            <div class="card-desc">話し終わってから変換を開始するまでの時間</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="silence-range">
+            <input type="number" id="silence-number"><span class="unit">秒</span>
+          </div>
+        </div>
+
+        <h2>外観</h2>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="theme-select">テーマ</label>
+          </div>
+          <div class="card-control"><select id="theme-select"></select></div>
+        </div>
+
+        <h2>移行中</h2>
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">マイクとショートカットキー</div>
+            <div class="card-desc">まだ今までの設定画面で設定します</div>
+          </div>
+          <div class="card-control"><button id="btn-legacy-config">今の設定画面を開く</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script src="app.js"></script>
+  <script src="settings.js"></script>
 </body>
 </html>

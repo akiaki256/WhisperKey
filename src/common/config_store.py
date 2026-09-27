@@ -58,6 +58,14 @@ LANGUAGE_DEFAULT = "ja"
 
 SHORTCUT_DEFAULT = "f9"
 
+# 本体の窓の見た目
+THEME_CHOICES = [
+    ("system", "システム設定に合わせる"),
+    ("light", "ライト"),
+    ("dark", "ダーク"),
+]
+THEME_DEFAULT = "system"
+
 
 class ConfigError(Exception):
     """config.json が読めないときの例外"""
@@ -83,6 +91,7 @@ def defaults():
         # インジケーターの位置(画面の左上からのピクセル)。つまんで動かすと保存される
         "indicator_x": 5,
         "indicator_y": 20,
+        "theme": THEME_DEFAULT,
     }
 
 
@@ -154,6 +163,7 @@ def normalize(raw):
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
         "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
+        "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
     }
 
 

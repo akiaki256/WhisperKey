@@ -54,9 +54,15 @@ def open_config_app():
 
 
 def _restart(icon, item):
-    """「再起動」: restart.bat を起動してプロセスを再起動する。
-    
+    """「再起動」"""
+    restart_app()
+
+
+def restart_app():
+    """restart.bat を起動してプロセスを再起動する。
+
     ショートカットキーが効かなくなる症状への対処用。
+    設定画面でモデルを変えたあとの再起動にも使う。
     restart.bat 側で taskkill → sleep → WhisperKey.exe 起動を実行するため、
     自プロセスは taskkill で強制終了される(os._exit は呼ばない)。
     
