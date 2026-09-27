@@ -78,6 +78,7 @@ function onHistoryChanged(entries) {
 function showHistoryToggle(enabled) {
   historyToggle.checked = enabled;
   document.getElementById("history-enabled-label").textContent = enabled ? "オン" : "オフ";
+  document.getElementById("history-off-notice").hidden = enabled;
 }
 
 historyToggle.addEventListener("change", async () => {

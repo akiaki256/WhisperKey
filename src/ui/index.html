@@ -70,11 +70,22 @@
         </details>
       </section>
 
-      <!-- 入力履歴。残すかどうか・件数・消去と、最近の入力の一覧。動きは history.js -->
+      <!-- 入力履歴。主役は一覧なので、スイッチ・件数・消去は一番下の「履歴の設定」へ。動きは history.js -->
       <section id="tab-history">
         <h1>入力履歴</h1>
         <p id="history-error" class="infobar error" hidden></p>
 
+        <!-- スイッチが一番下にあるので、オフのときだけここで知らせる(オフにしたのを忘れて「増えない」とならないように) -->
+        <p id="history-off-notice" class="infobar" hidden>
+          <span class="icon">&#xE946;</span>
+          <span class="infobar-text">「入力履歴を残す」がオフのため、新しい入力は残りません</span>
+        </p>
+
+        <p class="section-desc">文章の一部をなぞって選ぶと、音声辞書に追加できます</p>
+        <!-- history.js が履歴の数だけカードを作る -->
+        <div id="history-list"></div>
+
+        <h2>履歴の設定</h2>
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="history-enabled">入力履歴を残す</label>
@@ -113,11 +124,6 @@
           <button class="accent confirm-ok">消去</button>
           <button class="confirm-cancel">やめる</button>
         </div>
-
-        <h2>最近の入力</h2>
-        <p class="section-desc">文章の一部をなぞって選ぶと、音声辞書に追加できます</p>
-        <!-- history.js が履歴の数だけカードを作る -->
-        <div id="history-list"></div>
       </section>
 
       <!-- 音声辞書。一つの項目 = 変換後ひとつと、変換前いくつか(多対一)。動きは dict.js -->
