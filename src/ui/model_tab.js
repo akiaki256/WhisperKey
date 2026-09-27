@@ -18,6 +18,7 @@ function showModelError(message) {
   const errorEl = document.getElementById("model-error");
   errorEl.textContent = message ?? "";
   errorEl.hidden = !message;
+  if (message) errorEl.scrollIntoView({ block: "nearest" });   // 一覧を下までスクロールしていても見えるように
 }
 
 // カードの右側を、状態に合わせて作り直す
@@ -34,9 +35,13 @@ function showModelState(card, state, progress = 0) {
     status.querySelector("button").addEventListener("click", async (e) => {
       e.preventDefault();   // カード(label)を押したことにして、ラジオボタンが動かないように
       showModelError(null);
-      const ok = await askConfirm(
-        document.getElementById("model-delete-confirm"),
+      // 確認の帯は、押したカードのすぐ下に出す(一覧の下に置くと、モデルが多いときに画面の外になる)
+      const bar = document.getElementById("model-delete-confirm");
+      card.after(bar);
+      const answer = askConfirm(bar,
         `${card.dataset.model}(${card.dataset.size})を削除しますか?使うときは、もう一度ダウンロードが必要です`);
+      bar.scrollIntoView({ block: "nearest" });
+      const ok = await answer;
       if (!ok) return;
       const result = await window.pywebview.api.delete_model(card.dataset.model);
       if (result.error) {
@@ -66,6 +71,10 @@ function showModelState(card, state, progress = 0) {
 
 // モデルの一覧を、ラジオボタンのカードで作る。models は [{value, name, desc, size, downloaded, downloading}, ...]
 function buildModelList(container, models, current) {
+  // 確認の帯がカードのあいだに入っていたら、作り直しで一緒に消えないよう、元の場所に戻す
+  const bar = document.getElementById("model-delete-confirm");
+  bar.hidden = true;
+  container.after(bar);
   container.innerHTML = "";
   for (const model of models) {
     const card = document.createElement("label");
