@@ -115,31 +115,6 @@ function micChoices(names, current) {
   return choices;
 }
 
-// モデルの一覧を、ラジオボタンのカードで作る。models は [{value, name, desc}, ...]
-function buildModelList(container, models, current) {
-  container.innerHTML = "";
-  for (const model of models) {
-    const card = document.createElement("label");
-    card.className = "card radio-card";
-    card.innerHTML = `
-      <input type="radio" name="model_size">
-      <div class="card-text">
-        <div class="card-title"></div>
-        <div class="card-desc"></div>
-      </div>`;
-
-    // 文字は textContent で入れる(innerHTML に混ぜない)
-    const radio = card.querySelector("input");
-    radio.value = model.value;
-    radio.checked = model.value === current;
-    card.querySelector(".card-title").textContent = model.name;
-    card.querySelector(".card-desc").textContent = model.desc;
-
-    radio.addEventListener("change", () => saveSetting("model_size", model.value));
-    container.append(card);
-  }
-}
-
 async function loadSettings() {
   const s = await window.pywebview.api.get_settings();
 

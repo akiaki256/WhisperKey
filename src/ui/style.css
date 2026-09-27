@@ -814,3 +814,50 @@ button .icon.spin {
 button.sound-preview.playing .icon {
   color: var(--accent);
 }
+
+/* ---------- モデルタブ(ダウンロード) ---------- */
+
+.model-ready {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.model-ready .icon {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.model-downloading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ダウンロード中は、丸い矢印がくるくる回り続ける */
+.icon.spinning {
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+.model-download .icon {
+  font-size: 12px;
+}
+
+/* 手元に無いモデルのカードは、選べないことがわかるように */
+.radio-card.unavailable {
+  cursor: default;
+}
+
+.radio-card.unavailable:hover {
+  background: var(--card);
+}
+
+.radio-card.unavailable .card-title,
+.radio-card.unavailable input[type="radio"] {
+  opacity: 0.6;
+}

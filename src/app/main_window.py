@@ -25,6 +25,7 @@ import config_store
 import convert_dict
 import history
 import key_shortcut
+import model_store
 import paths
 import sounds
 import tray_icon
@@ -35,6 +36,7 @@ _state_manager = key_shortcut.MainStateManager()
 _window = None
 _loaded_model = None  # 起動時に読み込んだモデル。設定と違えば再起動が必要
 _shortcut_errors = {}  # 起動時にショートカットキーを登録できなかった {役割: 理由("taken" など)}。登録できたら消す
+_downloading = None    # ダウンロード中のモデルの名前(一度に一つだけ)
 
 # ショートカットの役割ごとの、config の項目名と画面での名前(key_shortcut.ACTIONS と合わせる)
 SHORTCUT_CONFIG_KEYS = {"toggle": "shortcut_key", "mode": "mode_key", "undo": "undo_key"}
@@ -53,11 +55,32 @@ BG_DARK = "#202020"
 
 
 def _model_list():
-    """モデルの一覧 [{"value", "name", "desc"}, ...](モデルタブのカード用)"""
+    """モデルの一覧 [{"value", "name", "desc", "size", "downloaded", "downloading"}, ...](モデルタブのカード用)"""
     return [
-        {"value": value, "name": name, "desc": desc}
+        {
+            "value": value,
+            "name": name,
+            "desc": desc,
+            "size": model_store.MODELS[value]["size"],
+            "downloaded": model_store.local_path(value) is not None,
+            "downloading": value == _downloading,
+        }
         for value, name, desc in config_store.model_choices()
     ]
+
+
+def _download_in_background(name):
+    """モデルを取りに行く(別のスレッドで)。進み具合と終わったことを画面に知らせる"""
+    global _downloading
+    try:
+        model_store.download(name, on_progress=lambda p: _call_js("onModelProgress", {"name": name, "progress": p}))
+        result = {"name": name, "ok": True}
+    except Exception as e:
+        print(f"モデルのダウンロードに失敗: {name}: {e}")
+        result = {"name": name, "ok": False, "error": f"ダウンロードできませんでした。インターネットにつながっているか確かめてください({e})"}
+    finally:
+        _downloading = None
+    _call_js("onModelDownloaded", result)
 
 
 def _call_js(function_name, value):
@@ -148,6 +171,9 @@ class Api:
         if key not in EDITABLE_KEYS:
             return {"error": f"変更できない項目です: {key}"}
 
+        if key == "model_size" and model_store.local_path(value) is None:
+            return {"error": "このモデルはまだダウンロードしていません。先にダウンロードしてください"}
+
         try:
             if key == "push_to_talk":
                 _state_manager.set_push_to_talk(bool(value))  # オンにしたら録音をオフにそろえる処理も一緒に
@@ -163,6 +189,20 @@ class Api:
 
     def restart(self):
         tray_icon.restart_app()
+
+    # ---- モデルのダウンロード ----
+
+    def download_model(self, name):
+        """ダウンロードを始める(終わるのを待たない)。進み具合は onModelProgress、終わったら onModelDownloaded で知らせる
+        一度に取りに行くのは一つだけ"""
+        global _downloading
+        if name not in model_store.MODELS:
+            return {"error": f"知らないモデルです: {name}"}
+        if _downloading is not None:
+            return {"error": "ほかのモデルをダウンロード中です。終わってからもう一度押してください"}
+        _downloading = name
+        threading.Thread(target=_download_in_background, args=(name,), daemon=True).start()
+        return {}
 
     # ---- 入力履歴 ----
 
