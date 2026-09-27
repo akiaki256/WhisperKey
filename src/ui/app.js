@@ -22,4 +22,5 @@ document.getElementById("btn-close").addEventListener("click", () => {
   window.pywebview.api.close();
 });
 
-showTab("shortcuts");
+// 最初に開くのは一番上のタブ(入力履歴。いちばん動きのある場所)
+showTab("history");
