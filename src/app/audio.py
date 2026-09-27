@@ -16,6 +16,13 @@ state_manager = MainStateManager()
 
 file_counter = 0  # ファイル名用のカウンター
 
+# 今の音量(しきい値と同じ物差し)。録音のループが CHUNK ごとに書き、設定タブのレベルメーターが読む
+_level = 0.0
+
+
+def get_level():
+    return _level
+
 temp_dir = TEMP_DIR  # tempフォルダのパス
 
 CHUNK = 2**10
@@ -101,6 +108,7 @@ def recording_function(wav_queue):
 
     wav_queue: Whisperスレッドと共有するキュー
     """
+    global _level
 
     def set_default_mic():
         try:
@@ -190,6 +198,7 @@ def recording_function(wav_queue):
         audio_data = np.frombuffer(data, dtype=np.int16)
         audio_data = audio_data.astype(np.float32)
         volume = np.sqrt(np.mean(audio_data**2))  # 無音を判断するための指数になるvolumeを定義
+        _level = float(volume)  # 設定タブのレベルメーター用(録音オフの間も測っている)
 
         listening = state_manager.get_state() == "start"
         threshold = config.get("volume_threshold")

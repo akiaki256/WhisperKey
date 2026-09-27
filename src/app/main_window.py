@@ -17,6 +17,7 @@ import winreg
 import pyperclip
 import webview
 
+import audio
 import audio_devices
 import command
 import config
@@ -125,6 +126,10 @@ class Api:
             "mics": self.get_mics(),
             "restart_needed": values["model_size"] != _loaded_model,
         }
+
+    def get_level(self):
+        """今の音量(しきい値と同じ物差し)。設定タブを開いているあいだ、画面が 50ms ごとに取りに来る"""
+        return audio.get_level()
 
     def get_mics(self):
         """今つながっているマイクの一覧(名前)。先頭は「既定のデバイスに自動接続」。更新ボタンからも呼ばれる"""

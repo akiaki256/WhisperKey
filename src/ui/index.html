@@ -202,14 +202,18 @@
             <button id="btn-refresh-mics" class="icon-button" title="マイクの一覧を更新"><span class="icon">&#xE72C;</span></button>
           </div>
         </div>
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="volume-range">音量しきい値</label>
-            <div class="card-desc">録音を開始する音量レベル。値を上げるほど静かな音を拾わなくなります</div>
+        <!-- レベルメーターの上に、しきい値のつまみを重ねる。動きは level_meter.js -->
+        <div class="card card-stack">
+          <div class="card-row">
+            <div class="card-text">
+              <label class="card-title" for="volume-range">音量しきい値</label>
+              <div class="card-desc">バーがつまみを超えると録音が始まります。話していないときのバーより、少し右に合わせてください</div>
+            </div>
+            <div class="card-control"><input type="number" id="volume-number"></div>
           </div>
-          <div class="card-control">
-            <input type="range" id="volume-range">
-            <input type="number" id="volume-number">
+          <div class="level-meter">
+            <div class="level-fill" id="level-fill"></div>
+            <input type="range" id="volume-range" min="0" max="1000" step="1">
           </div>
         </div>
         <div class="card">
@@ -237,6 +241,7 @@
 
   <script src="app.js"></script>
   <script src="settings.js"></script>
+  <script src="level_meter.js"></script>
   <script src="settings_shortcut.js"></script>
   <script src="dict.js"></script>
   <script src="command.js"></script>

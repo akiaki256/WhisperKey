@@ -112,16 +112,8 @@ async function loadSettings() {
 
   applyTheme(s.values.theme);
 
-  // 音量しきい値
-  const volumeRange = document.getElementById("volume-range");
-  volumeRange.min = s.volume.min;
-  volumeRange.max = s.volume.max;
-  volumeRange.step = 1;
-  const showVolume = bindSlider(
-    "volume_threshold", volumeRange, document.getElementById("volume-number"),
-    (v) => Math.round(v),
-  );
-  showVolume(s.values.volume_threshold);
+  // 音量しきい値(レベルメーターと一体。しくみは level_meter.js)
+  setupLevelMeter(s.volume.min, s.volume.max, s.values.volume_threshold);
 
   // 無音時間
   const silenceRange = document.getElementById("silence-range");

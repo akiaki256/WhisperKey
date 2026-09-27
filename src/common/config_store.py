@@ -24,8 +24,9 @@ from paths import CONFIG_JSON
 # 範囲・選択肢
 # =====================================================
 
+# 設定タブのレベルメーターの目盛りも、この範囲をそのまま使う(大きい声でも振り切らないよう、上は広めに)
 VOLUME_THRESHOLD_MIN = 100
-VOLUME_THRESHOLD_MAX = 10000
+VOLUME_THRESHOLD_MAX = 15000
 
 SILENCE_DURATION_MIN = 0.3
 SILENCE_DURATION_MAX = 5.0
