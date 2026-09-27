@@ -187,6 +187,10 @@ async function loadSettings() {
   }
   bindToggle(document.getElementById("sound-padding"), document.getElementById("sound-padding-label"),
     "sound_padding", s.values.sound_padding);
+
+  // 貼り付け
+  bindToggle(document.getElementById("clipboard-private"), document.getElementById("clipboard-private-label"),
+    "clipboard_private", s.values.clipboard_private);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
 }
 

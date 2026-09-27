@@ -121,6 +121,8 @@ def defaults():
         "sound_off": "停止(デフォルト).wav",
         # 効果音の前後に無音をつける(ワイヤレスイヤホンが音の頭を取りこぼさないように)
         "sound_padding": True,
+        # 貼り付けた音声入力の文字を、Win + V の履歴・クラウド同期に残さない
+        "clipboard_private": True,
         "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
         # インジケーターの表示方法と位置(画面の左上からのピクセル。丸と操作パネルで共通)。つまんで動かすと保存される
@@ -213,6 +215,7 @@ def normalize(raw):
         "sound_on": _fix_optional_text(merged["sound_on"], d["sound_on"]),
         "sound_off": _fix_optional_text(merged["sound_off"], d["sound_off"]),
         "sound_padding": _fix_bool(merged["sound_padding"], d["sound_padding"]),
+        "clipboard_private": _fix_bool(merged["clipboard_private"], d["clipboard_private"]),
         "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_mode": _fix_choice(merged["indicator_mode"], INDICATOR_MODE_CHOICES, d["indicator_mode"]),

@@ -1,11 +1,10 @@
 import os
-import pyperclip
-import keyboard
 import config
 import convert_dict
 import command
 import history
 import undo_input
+import paste
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
@@ -92,8 +91,7 @@ def whisper_function(model, wav_queue):
                 undo_input.forget()  # 直前がコマンドなので、その前の入力は取り消させない
 
             elif result:  # 空文字でない場合のみ貼り付け
-                pyperclip.copy(result)
-                keyboard.send('ctrl+v')
+                paste.paste(result)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
                 print(f"入力: {result[:30]}...") # 最初の30文字を表示
                 undo_input.remember(result)  # 取り消しのキーで消せるように
                 history.add(result)  # 入力した文章だけを残す(音声実行は残さない)

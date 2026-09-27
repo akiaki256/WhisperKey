@@ -44,7 +44,7 @@ SHORTCUT_LABELS = {"toggle": "入力モードの切り替え", "undo": "直前�
 EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
     "history_enabled", "history_limit", "push_to_talk", "indicator_mode",
-    "sound_startup", "sound_on", "sound_off", "sound_padding",
+    "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
