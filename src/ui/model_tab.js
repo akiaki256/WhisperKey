@@ -1,7 +1,8 @@
 // モデルタブのモデルの一覧(ラジオボタンのカード)
 //
 // カードの右側に、そのモデルが手元にあるかを出す
-// - 手元にある:     「ダウンロード済み」
+// - 手元にある:     「ダウンロード済み」とごみ箱ボタン。確認の帯を出してから消す
+//                   選ばれているモデルのごみ箱は出さない(style.css)
 // - 手元に無い:     「ダウンロード(約 1.5 GB)」ボタン。押すと Python が別のスレッドで取りに行く
 // - ダウンロード中: くるくる回る矢印と「ダウンロード中 42%」
 // 手元に無いモデルは、ダウンロードが終わるまで選べない(ラジオボタンを押せなくする)
@@ -28,7 +29,22 @@ function showModelState(card, state, progress = 0) {
   card.classList.toggle("unavailable", state !== "downloaded");
 
   if (state === "downloaded") {
-    status.innerHTML = `<span class="model-ready"><span class="icon">&#xE73E;</span> ダウンロード済み</span>`;
+    status.innerHTML = `<span class="model-ready"><span class="icon">&#xE73E;</span> ダウンロード済み</span>
+      <button class="icon-button model-delete" title="このモデルを削除"><span class="icon">&#xE74D;</span></button>`;
+    status.querySelector("button").addEventListener("click", async (e) => {
+      e.preventDefault();   // カード(label)を押したことにして、ラジオボタンが動かないように
+      showModelError(null);
+      const ok = await askConfirm(
+        document.getElementById("model-delete-confirm"),
+        `${card.dataset.model}(${card.dataset.size})を削除しますか?使うときは、もう一度ダウンロードが必要です`);
+      if (!ok) return;
+      const result = await window.pywebview.api.delete_model(card.dataset.model);
+      if (result.error) {
+        showModelError(result.error);
+      } else {
+        showModelState(card, "missing");
+      }
+    });
   } else if (state === "downloading") {
     status.innerHTML = `<span class="model-downloading"><span class="icon spinning">&#xE72C;</span> <span class="model-percent"></span></span>`;
     status.querySelector(".model-percent").textContent = `ダウンロード中 ${Math.floor(progress * 100)}%`;
@@ -68,7 +84,7 @@ function buildModelList(container, models, current) {
     const radio = card.querySelector("input");
     radio.value = model.value;
     radio.checked = model.value === current;
-    card.querySelector(".card-title").textContent = model.name;
+    card.querySelector(".card-title").textContent = `${model.name}(${model.size})`;
     card.querySelector(".card-desc").textContent = model.desc;
     radio.addEventListener("change", () => saveSetting("model_size", model.value));
 

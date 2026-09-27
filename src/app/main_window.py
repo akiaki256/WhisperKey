@@ -225,7 +225,7 @@ class Api:
     def restart(self):
         tray_icon.restart_app()
 
-    # ---- モデルのダウンロード ----
+    # ---- モデルのダウンロードと削除 ----
 
     def download_model(self, name):
         """ダウンロードを始める(終わるのを待たない)。進み具合は onModelProgress、終わったら onModelDownloaded で知らせる
@@ -237,6 +237,22 @@ class Api:
             return {"error": "ほかのモデルをダウンロード中です。終わってからもう一度押してください"}
         _downloading = name
         threading.Thread(target=_download_in_background, args=(name,), daemon=True).start()
+        return {}
+
+    def delete_model(self, name):
+        """手元のモデルを消す。選ばれているモデル・今使っているモデル・ダウンロード中のモデルは消せない"""
+        if name not in model_store.MODELS:
+            return {"error": f"知らないモデルです: {name}"}
+        if name == config.get("model_size"):
+            return {"error": "選ばれているモデルは削除できません。ほかのモデルを選んでから削除してください"}
+        if name == model.loaded_name():
+            return {"error": "このモデルは今使われています。再起動したあとに削除してください"}
+        if name == _downloading:
+            return {"error": "ダウンロード中のモデルは削除できません"}
+        try:
+            model_store.delete(name)
+        except OSError as e:
+            return {"error": f"モデルの削除に失敗しました: {e}"}
         return {}
 
     # ---- 入力履歴 ----

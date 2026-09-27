@@ -848,6 +848,30 @@ button.sound-preview.playing .icon {
   font-size: 12px;
 }
 
+/* 手元にあるモデルのごみ箱。選ばれているモデルは消せないので出さない */
+.model-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-status .icon-button {
+  border-color: transparent;
+  background: none;
+}
+
+.model-status .icon-button:hover {
+  background: var(--subtle-hover);
+}
+
+.model-status .icon-button:active {
+  background: var(--subtle-pressed);
+}
+
+.radio-card:has(input:checked) .model-delete {
+  visibility: hidden;   /* 消えても幅は残して、「ダウンロード済み」の位置をそろえる */
+}
+
 /* 手元に無いモデルのカードは、選べないことがわかるように */
 .radio-card.unavailable {
   cursor: default;

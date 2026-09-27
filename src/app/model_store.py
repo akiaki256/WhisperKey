@@ -7,6 +7,7 @@ Whisper だけでなく、あとから足すモデル(kotoba-whisper、ローカ
 - MODELS: モデルの一覧 {モデルの名前: Hugging Face の場所・取ってくるファイル・大きさの目安}
 - local_path(name): 手元にあれば、そのフォルダ。無ければ None。**ネットには出ない**
 - download(name, on_progress): Hugging Face から取ってくる。on_progress(0.0〜1.0) で進み具合を知らせる
+- delete(name): 手元のモデルを消す
 
 しまい方は Hugging Face の形(models/models--Systran--faster-whisper-medium/snapshots/...)。
 v4.4 までの faster-whisper が自分でしまっていた形と同じなので、手元にあるモデルはそのまま使える。
@@ -14,6 +15,7 @@ v4.4 までの faster-whisper が自分でしまっていた形と同じなの�
 
 import fnmatch
 import os
+import shutil
 import threading
 
 # 本体では main.py の一番最初で決めている(Hugging Face のライブラリが読み込まれる前でないと効かないため)。
@@ -35,6 +37,8 @@ MODELS = {
     "small": {"repo": "Systran/faster-whisper-small", "files": WHISPER_FILES, "size": "約 480 MB"},
     "medium": {"repo": "Systran/faster-whisper-medium", "files": WHISPER_FILES, "size": "約 1.5 GB"},
     "large-v3": {"repo": "Systran/faster-whisper-large-v3", "files": WHISPER_FILES, "size": "約 3.1 GB"},
+    "large-v3-turbo": {"repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo", "files": WHISPER_FILES, "size": "約 1.6 GB"},
+    "kotoba-whisper-v2.0": {"repo": "kotoba-tech/kotoba-whisper-v2.0-faster", "files": WHISPER_FILES, "size": "約 1.5 GB"},
 }
 
 # 手元にそろっていると言えるファイル(これが無ければ「無い」とみなす)
@@ -107,3 +111,13 @@ def download(name, on_progress=None):
     if on_progress:
         on_progress(1.0)
     return path
+
+
+def delete(name):
+    """手元のモデルを消す。失敗したら例外"""
+    repo = MODELS[name]["repo"]
+    folder = _repo_dir(repo)
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    # ダウンロードのときに Hugging Face が作る鍵のフォルダ(無くても困らない)
+    shutil.rmtree(os.path.join(MODELS_DIR, ".locks", os.path.basename(folder)), ignore_errors=True)

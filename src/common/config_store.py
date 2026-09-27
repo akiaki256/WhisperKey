@@ -39,14 +39,23 @@ DEFAULT_DEVICE_LABEL = "既定のデバイスに自動接続"
 
 # 選択肢の形式: [(保存値, 表示ラベル), ...]
 # モデルだけは [(保存値, 名前, 説明), ...](モデルタブで名前を大きく、説明を下に小さく見せる)
+# CPU版の medium と kotoba は実験的に選べるだけ。Ryzen 5 3600 では、3 秒の声に kotoba で 13 秒かかった(2026/09/27)
 MODEL_CHOICES_CPU = [
     ("tiny", "tiny", "最速・軽量(精度は低め)"),
     ("base", "base", "バランス型(速度と精度の中間)"),
     ("small", "small", "高精度(処理はやや重い)"),
+    ("medium", "medium",
+     "【実験的】とても重いモデルです。かなり高性能な CPU でないと、入力までに 10 秒以上かかります"),
+    ("kotoba-whisper-v2.0", "kotoba-whisper-v2.0",
+     "【実験的】日本語専用の高精度モデル。とても重く、かなり高性能な CPU でないと、入力までに 10 秒以上かかります"),
 ]
 MODEL_CHOICES_GPU = [
+    ("tiny", "tiny", "最速・最軽量(精度は低め)"),
+    ("base", "base", "とても軽量(精度はやや低め)"),
     ("small", "small", "高速・軽量"),
     ("medium", "medium", "バランス型(推奨)"),
+    ("kotoba-whisper-v2.0", "kotoba-whisper-v2.0", "日本語専用。large-v3 に近い精度で、より速い"),
+    ("large-v3-turbo", "large-v3-turbo", "多言語対応。large-v3 に近い精度で、より速い"),
     ("large-v3", "large-v3", "最高精度(処理はやや重い)"),
 ]
 MODEL_DEFAULT_CPU = "base"
