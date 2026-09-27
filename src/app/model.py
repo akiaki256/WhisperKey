@@ -2,6 +2,7 @@ from faster_whisper import WhisperModel
 import os
 import sys
 
+import model_store
 from error_dialog import show_error
 from edition import EDITION
 from paths import MODELS_DIR
@@ -32,11 +33,16 @@ def load_model(model_size):
         
         print(f"faster-Whisper model load：edition={EDITION}, device={device}, compute_type={compute_type}")
         
+        # 手元のフォルダから読む(ネットには出ない)。以前はモデル名を渡していたため、
+        # モデルが手元にあっても起動のたびに Hugging Face へ新しい版を聞きに行っていた
+        path = model_store.local_path(model_size)
+        if path is None:
+            raise ModelLoadError(f"モデル '{model_size}' が手元にありません")
+
         model = WhisperModel(
-            model_size,
+            path,
             device=device,
             compute_type=compute_type,
-            download_root=models_dir,
         )
 
         print(f"faster-Whisper model load：success! modelname={model_size}")
@@ -49,7 +55,6 @@ def load_model(model_size):
             "faster-Whisperモデルの読み込みに失敗したためソフトを終了します\n\n"
             "以下のいずれかが原因の可能性があります:\n"
             "・config.jsonの'model_size'の値が不正\n"
-            "・インターネット接続の問題\n"
             "・'models/'フォルダの破損\n"
             "・(GPU版のみ) CUDA/cuDNNが正しくインストールされていない"
         )

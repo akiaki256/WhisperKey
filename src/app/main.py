@@ -4,6 +4,14 @@ import sys
 # src/common を import できるようにする(exe化後は PyInstaller の --paths で同梱済み)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common"))
 
+# Hugging Face(モデルのダウンロード)の決まりごと。ライブラリが読み込まれる前に決めないと効かない
+# - Xet を使わない: 途中のデータをインストール先の外(ユーザーの .cache)に貯めず、進み具合も数えられるように
+# - 進捗バーを出さない: exe はコンソールの無い形でビルドしているので、書き込む先が無くてエラーになる
+# - シンボリックリンクが使えない警告を出さない(Windows では実物を置く形で問題なく動く)
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
 # ========================================================
 # 起動中インジケーター表示(重いimportより前、最優先)
 # ========================================================
