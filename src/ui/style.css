@@ -653,3 +653,18 @@ button:disabled {
     box-shadow: none;
   }
 }
+
+/* エラーが二つ以上あるときは、改行して並べる */
+.infobar.error {
+  white-space: pre-line;
+}
+
+/* ショートカットの「割り当てない」(×)は控えめに */
+button.shortcut-clear {
+  border-color: transparent;
+  background: none;
+}
+
+button.shortcut-clear:hover {
+  background: var(--subtle-hover);
+}

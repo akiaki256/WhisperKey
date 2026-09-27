@@ -1,12 +1,14 @@
 // ショートカットタブのキーの割り当て(キーを押して決める)
+// ボタンの data-action が役割("toggle" = 入力モードの切り替え、"undo" = 直前の入力を取り消す)
 //
-// 1. ボタンを押す → Python に今のキーの登録を外してもらう(今のキーも画面に届くように)
-// 2. キーを押す → "ctrl+alt+f9" の形にして Python に送る。Python が登録・保存する
+// 1. ボタンを押す → Python に全部のキーの登録を一旦外してもらう(どのキーも画面に届くように)
+// 2. キーを押す → "ctrl+alt+f9" の形にして Python に送る。Python が登録・保存し、ほかの役割も登録し直す
 //    使えないキー・ほかのソフトが使用中のときは、Python が元のキーを登録し直してエラーを返す
 // 3. Esc・ほかの場所をクリック・窓から離れる → 取り消し(元のキーを登録し直す)
+// × ボタン(shortcut-clear)は「割り当てない」
 
-const shortcutButton = document.getElementById("btn-shortcut");
-let capturing = false;
+const shortcutButtons = document.querySelectorAll(".shortcut-button");
+let capturingButton = null;   // キーを待っているボタン(待っていなければ null)
 
 // "ctrl+space" → "Ctrl + Space"
 function formatShortcut(keyStr) {
@@ -18,19 +20,27 @@ function formatShortcut(keyStr) {
 }
 
 // 起動時に登録できなかったときの知らせの文。kind は "taken" / "invalid" / "failed"
-function startupShortcutMessage(kind, keyStr) {
+function startupShortcutMessage(label, kind, keyStr) {
   if (kind === "taken") {
-    return `「${formatShortcut(keyStr)}」はほかのソフトが使用中のため、登録できませんでした。別のキーを割り当ててください`;
+    return `「${label}」の「${formatShortcut(keyStr)}」はほかのソフトが使用中のため、登録できませんでした。別のキーを割り当ててください`;
   }
   if (kind === "invalid") {
-    return `設定されているキー「${keyStr}」を読み込めませんでした。キーを割り当て直してください`;
+    return `「${label}」に設定されているキー「${keyStr}」を読み込めませんでした。キーを割り当て直してください`;
   }
-  return `「${formatShortcut(keyStr)}」を登録できませんでした。キーを割り当て直してください`;
+  return `「${label}」の「${formatShortcut(keyStr)}」を登録できませんでした。キーを割り当て直してください`;
 }
 
-function showShortcut(keyStr) {
-  shortcutButton.dataset.value = keyStr;
-  shortcutButton.textContent = formatShortcut(keyStr);
+function buttonFor(action) {
+  return document.querySelector(`.shortcut-button[data-action="${action}"]`);
+}
+
+// 役割のキーを表示する。"" なら「割り当てなし」で、× ボタンを隠す
+function showShortcut(action, keyStr) {
+  const button = buttonFor(action);
+  button.dataset.value = keyStr;
+  button.textContent = keyStr ? formatShortcut(keyStr) : "割り当てなし";
+  const clear = document.querySelector(`.shortcut-clear[data-action="${action}"]`);
+  if (clear) clear.hidden = !keyStr;
 }
 
 // 押されたキー(e.code)を、Python の parse_shortcut が読める名前にする。使えないキーなら null
@@ -44,28 +54,33 @@ function mainKeyName(code) {
   return null;
 }
 
-async function startCapture() {
-  capturing = true;
+async function startCapture(button) {
+  capturingButton = button;
   showError(null);
-  shortcutButton.classList.add("capturing");
-  shortcutButton.textContent = "キーを押してください(Esc で取り消し)";
+  button.classList.add("capturing");
+  button.textContent = "キーを押してください(Esc で取り消し)";
   await window.pywebview.api.begin_shortcut_capture();
 }
 
+// keyStr: 押されたキー。null なら取り消し、"" なら割り当てない
 async function finishCapture(keyStr) {
-  if (!capturing) return;
-  capturing = false;
-  shortcutButton.classList.remove("capturing");
+  const button = capturingButton;
+  if (!button) return;
+  capturingButton = null;
+  button.classList.remove("capturing");
+  await saveShortcut(button.dataset.action, keyStr);
+}
 
-  const result = await window.pywebview.api.end_shortcut_capture(keyStr);
-  showShortcut(result.value);
+async function saveShortcut(action, keyStr) {
+  const result = await window.pywebview.api.end_shortcut_capture(action, keyStr);
+  showShortcut(action, result.value);
   showError(result.error);
 }
 
 // キーを待っているあいだは、押されたキーをすべてここで受け取る(ほかの動きをさせない)
 // capture: true で、ほかの要素より先に受け取る
 document.addEventListener("keydown", (e) => {
-  if (!capturing) return;
+  if (!capturingButton) return;
   e.preventDefault();
   e.stopPropagation();
 
@@ -78,7 +93,7 @@ document.addEventListener("keydown", (e) => {
 
   const main = mainKeyName(e.code);
   if (main === null) {
-    shortcutButton.textContent = "このキーは使えません。別のキーを押してください";
+    capturingButton.textContent = "このキーは使えません。別のキーを押してください";
     return;
   }
 
@@ -90,12 +105,18 @@ document.addEventListener("keydown", (e) => {
   finishCapture(parts.join("+"));
 }, true);
 
-shortcutButton.addEventListener("click", () => {
-  if (!capturing) startCapture();
+shortcutButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!capturingButton) startCapture(button);
+  });
+});
+
+document.querySelectorAll(".shortcut-clear").forEach((clear) => {
+  clear.addEventListener("click", () => saveShortcut(clear.dataset.action, ""));
 });
 
 // ほかの場所をクリックしたり、窓から離れたりしたら取り消す
 document.addEventListener("mousedown", (e) => {
-  if (capturing && e.target !== shortcutButton) finishCapture(null);
+  if (capturingButton && e.target !== capturingButton) finishCapture(null);
 });
 window.addEventListener("blur", () => finishCapture(null));

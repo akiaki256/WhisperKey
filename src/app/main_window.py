@@ -32,7 +32,11 @@ _state_manager = key_shortcut.MainStateManager()
 
 _window = None
 _loaded_model = None  # 起動時に読み込んだモデル。設定と違えば再起動が必要
-_shortcut_error = None  # 起動時にショートカットキーを登録できなかった理由("taken" など)。登録できたら None
+_shortcut_errors = {}  # 起動時にショートカットキーを登録できなかった {役割: 理由("taken" など)}。登録できたら消す
+
+# ショートカットの役割ごとの、config の項目名と画面での名前(key_shortcut.ACTIONS と合わせる)
+SHORTCUT_CONFIG_KEYS = {"toggle": "shortcut_key", "undo": "undo_key"}
+SHORTCUT_LABELS = {"toggle": "入力モードの切り替え", "undo": "直前の入力を取り消す"}
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {
@@ -104,8 +108,10 @@ class Api:
         values = config.get_all()
         return {
             "values": {key: values[key] for key in EDITABLE_KEYS},
-            "shortcut_key": values["shortcut_key"],  # 変えるときは end_shortcut_capture から
-            "shortcut_error": _shortcut_error,
+            # ショートカットは {役割: キー}。変えるときは end_shortcut_capture から
+            "shortcuts": {action: values[key] for action, key in SHORTCUT_CONFIG_KEYS.items()},
+            "shortcut_errors": _shortcut_errors,
+            "shortcut_labels": SHORTCUT_LABELS,
             "volume": {"min": config_store.VOLUME_THRESHOLD_MIN, "max": config_store.VOLUME_THRESHOLD_MAX},
             "silence": {
                 "min": config_store.SILENCE_DURATION_MIN,
@@ -196,47 +202,70 @@ class Api:
         return {}
 
     # ---- ショートカットキー(キーを押して決める) ----
-    # 始めるときに今のキーの登録を外し(今のキーも画面に届くように)、終わるときに登録し直す
+    # 始めるときに全部の役割の登録を外し(どのキーも画面に届くように)、終わるときに登録し直す
 
     def begin_shortcut_capture(self):
-        _state_manager.suspend_shortcut()
+        _state_manager.suspend_all_shortcuts()
 
-    def end_shortcut_capture(self, key_str):
-        """key_str を登録して保存する。None なら取り消し。
+    def end_shortcut_capture(self, action, key_str):
+        """役割 action に key_str を登録して保存する。None なら取り消し、"" なら割り当てない。
         使えない・登録できなかったときは、元のキーを登録し直してエラーを返す"""
-        global _shortcut_error
-        old = config.get("shortcut_key")
+        config_key = SHORTCUT_CONFIG_KEYS[action]
+        old = config.get(config_key)
+        value = old
         problem = None
 
-        if key_str and key_str != old:
-            problem = key_shortcut.check_new_shortcut(key_str)
+        if key_str is not None and key_str != old:
+            problem = _check_shortcut(action, key_str)
             if problem is None:
-                error = _state_manager.register_shortcut(key_str)
+                error = _state_manager.register_shortcut(action, key_str)
                 if error is None:
-                    _shortcut_error = None
-                    try:
-                        config.update({"shortcut_key": key_str})
-                    except OSError as e:
-                        return {"value": key_str, "error": f"設定の保存に失敗しました(このキーは次の起動まで有効です): {e}"}
-                    return {"value": key_str}
-                problem = "ほかのソフトが使用中です" if error[0] == "taken" else f"登録できませんでした: {error[1]}"
+                    value = key_str
+                else:
+                    problem = "ほかのソフトが使用中です" if error[0] == "taken" else f"登録できませんでした: {error[1]}"
 
-        if _state_manager.register_shortcut(old) is None:
-            _shortcut_error = None  # 起動時に取られていたキーが、あとで空いた場合
+        if value == old:
+            if _state_manager.register_shortcut(action, old) is None:
+                _shortcut_errors.pop(action, None)  # 起動時に取られていたキーが、あとで空いた場合も
+            else:
+                problem = (problem + "。" if problem else "") + "元のキーも登録できませんでした。別のキーを選んでください"
         else:
-            problem = (problem + "。" if problem else "") + "元のキーも登録できませんでした。別のキーを選んでください"
-        return {"value": old, "error": problem}
+            _shortcut_errors.pop(action, None)
+            try:
+                config.update({config_key: value})
+            except OSError as e:
+                problem = f"設定の保存に失敗しました(このキーは次の起動まで有効です): {e}"
+
+        # キーを決めているあいだ外していた、ほかの役割を登録し直す
+        for other, other_config_key in SHORTCUT_CONFIG_KEYS.items():
+            if other != action and _state_manager.register_shortcut(other, config.get(other_config_key)) is None:
+                _shortcut_errors.pop(other, None)
+
+        return {"value": value, "error": problem}
 
 
-def create(loaded_model, shortcut_error=None):
+def _check_shortcut(action, key_str):
+    """画面で選ばれたキーを、その役割に使ってよいか。よければ None、だめなら理由の文"""
+    if key_str == "":
+        return "入力モードの切り替えは、割り当てないにはできません" if action == "toggle" else None
+    problem = key_shortcut.check_new_shortcut(key_str)
+    if problem:
+        return problem
+    for other, other_config_key in SHORTCUT_CONFIG_KEYS.items():
+        if other != action and config.get(other_config_key) == key_str:
+            return f"「{SHORTCUT_LABELS[other]}」と同じキーです"
+    return None
+
+
+def create(loaded_model, shortcut_errors=None):
     """窓を作る(表示されるのは start() のあと)
 
-    shortcut_error: 起動時にショートカットキーを登録できなかった理由。
+    shortcut_errors: 起動時にショートカットキーを登録できなかった役割と理由 {役割: "taken" など}。
     あれば画面はショートカットタブを開いて知らせる
     """
-    global _window, _loaded_model, _shortcut_error
+    global _window, _loaded_model, _shortcut_errors
     _loaded_model = loaded_model
-    _shortcut_error = shortcut_error
+    _shortcut_errors = dict(shortcut_errors or {})
     config.add_listener(_on_config_changed)
     history.add_listener(_on_history_changed)
 

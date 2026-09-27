@@ -135,11 +135,15 @@ async function loadSettings() {
   showSilence(s.values.silence_duration);
 
   // ショートカットキー(変えるしくみは settings_shortcut.js)
-  showShortcut(s.shortcut_key);
-  if (s.shortcut_error) {
+  for (const [action, keyStr] of Object.entries(s.shortcuts)) {
+    showShortcut(action, keyStr);
+  }
+  const failed = Object.entries(s.shortcut_errors);
+  if (failed.length > 0) {
     // 起動時に登録できなかった。ショートカットタブを開いて知らせる
     showTab("shortcuts");
-    showError(startupShortcutMessage(s.shortcut_error, s.shortcut_key));
+    showError(failed.map(([action, kind]) =>
+      startupShortcutMessage(s.shortcut_labels[action], kind, s.shortcuts[action])).join("\n"));
   }
 
   // マイク

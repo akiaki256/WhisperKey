@@ -43,7 +43,11 @@ PM_REMOVE = 0x0001
 WM_APP_COMMAND = 0x8000 + 1  # 待ち受けのスレッドへの「お願いがあるよ」の合図(WM_APP + 1)
 ERROR_HOTKEY_ALREADY_REGISTERED = 1409
 
-_HOTKEY_ID = 1
+# ショートカットの役割と、Windows に登録するときの番号(役割が増えたらここに足す)
+ACTIONS = {
+    "toggle": 1,  # 入力モードの切り替え
+    "undo": 2,    # 直前の入力を取り消す
+}
 
 _MODIFIER_FLAGS = {
     "ctrl": MOD_CONTROL,
@@ -133,6 +137,7 @@ class MainStateManager():
             cls._instance.state = "stop"
             cls._instance._pending = 0
             cls._instance._pending_lock = threading.Lock()
+            cls._instance._handlers = {"toggle": cls._instance.toggle_state}
         return cls._instance
 
     def get_state(self):
@@ -161,39 +166,53 @@ class MainStateManager():
 
         return self.state
 
-    # ホットキー登録(stateの切り替えを実行する処理を付与)
-    def start_listener(self, shortcut_key):
+    # ---- ショートカットキー(役割ごと) ----
+
+    def set_handler(self, action, fn):
+        """役割のキーが押されたときに呼ぶ処理を決める(toggle は toggle_state が最初から入っている)"""
+        self._handlers[action] = fn
+
+    def start_listener(self, keys):
         """
         専用スレッドで RegisterHotKey を行い、そのスレッドで WM_HOTKEY を待ち受ける。
         (RegisterHotKey の通知は、登録したスレッドのメッセージキューに届くため)
 
+        keys: {役割: キー}。例 {"toggle": "f9", "undo": "shift+f9"}。キーが "" なら割り当てない
+
         登録に失敗しても終了しない。待ち受けはキーなしのまま続け、あとから画面で登録し直せるようにする。
-        戻り値: 成功なら None、失敗なら (種類, 詳細)。種類は "invalid" / "taken" / "failed"
+        戻り値: 失敗した役割だけの {役割: (種類, 詳細)}。種類は "invalid" / "taken" / "failed"
 
         起動したあとの登録し直し(画面からキーを変えるとき)も、Windows の決まりで同じスレッドで行う。
-        ほかのスレッドからは suspend_shortcut() / register_shortcut() でお願いする。
+        ほかのスレッドからは suspend_all_shortcuts() / register_shortcut() でお願いする。
         お願いは _command に置き、PostThreadMessageW で合図を送って、このスレッドの中で処理する。
         """
         registered = threading.Event()
-        result = {}
+        errors = {}
         self._command = None
         self._command_result = None
         self._command_done = threading.Event()
         self._command_lock = threading.Lock()
+        vks = {}  # 登録中の {役割: 仮想キーコード}
 
-        def register(key_str):
-            """key_str を登録する。成功なら None、失敗なら "invalid" / "taken" / "failed" と詳細"""
+        def unregister(action):
+            if action in vks:
+                _user32.UnregisterHotKey(None, ACTIONS[action])
+                del vks[action]
+
+        def register(action, key_str):
+            """役割に key_str を登録し直す。成功(または "" で割り当てなし)なら None、失敗なら (種類, 詳細)"""
+            unregister(action)
+            if key_str == "":
+                return None
             try:
                 flags, vk = parse_shortcut(key_str)
             except ValueError as e:
                 return "invalid", e
-            if not _user32.RegisterHotKey(None, _HOTKEY_ID, flags | MOD_NOREPEAT, vk):
+            if not _user32.RegisterHotKey(None, ACTIONS[action], flags | MOD_NOREPEAT, vk):
                 code = ctypes.get_last_error()
                 return ("taken" if code == ERROR_HOTKEY_ALREADY_REGISTERED else "failed"), ctypes.WinError(code)
-            state["vk"] = vk
+            vks[action] = vk
             return None
-
-        state = {"vk": None}  # 登録中のキー(None なら登録していない)
 
         def run():
             self._thread_id = _kernel32.GetCurrentThreadId()
@@ -201,53 +220,65 @@ class MainStateManager():
             msg = wintypes.MSG()
             _user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, PM_NOREMOVE)
 
-            result["error"] = register(shortcut_key)
+            for action, key_str in keys.items():
+                error = register(action, key_str)
+                if error:
+                    errors[action] = error
             registered.set()
 
+            actions_by_id = {hotkey_id: action for action, hotkey_id in ACTIONS.items()}
             while _user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-                if msg.message == WM_HOTKEY and msg.wParam == _HOTKEY_ID and state["vk"] is not None:
+                if msg.message == WM_HOTKEY:
+                    action = actions_by_id.get(msg.wParam)
+                    if action not in vks:
+                        continue
+                    handler = self._handlers.get(action)
                     try:
-                        self.toggle_state()
+                        if handler:
+                            handler()
                     except Exception as e:
                         # ここで例外が抜けると待ち受けが止まり、ショートカットが効かなくなるため握りつぶす
-                        print(f"聞き取りモードの切り替えでエラー: {e}")
-                    _wait_for_release(state["vk"])
+                        print(f"ショートカット({action})の処理でエラー: {e}")
+                    _wait_for_release(vks[action])
 
                 elif msg.message == WM_APP_COMMAND:
-                    command, key_str = self._command
-                    if state["vk"] is not None:
-                        _user32.UnregisterHotKey(None, _HOTKEY_ID)
-                        state["vk"] = None
-                    self._command_result = register(key_str) if command == "register" else None
+                    command, action, key_str = self._command
+                    if command == "suspend_all":
+                        for registered_action in list(vks):
+                            unregister(registered_action)
+                        self._command_result = None
+                    else:
+                        self._command_result = register(action, key_str)
                     self._command_done.set()
 
         threading.Thread(target=run, name="hotkey", daemon=True).start()
         registered.wait()
 
-        if result["error"]:
-            print(f"ショートカットキー登録：失敗 ({shortcut_key}): {result['error'][1]}")
-            return result["error"]
+        for action, key_str in keys.items():
+            if action in errors:
+                print(f"ショートカットキー登録：失敗 ({action}: {key_str}): {errors[action][1]}")
+            else:
+                print(f"ショートカットキー登録：完了 ({action}: {key_str or '割り当てなし'})")
+        if "toggle" not in errors:
+            winsound.Beep(1200, 100)
+            winsound.Beep(1600, 100)  # Hz, ms
+        return errors
 
-        print(f"ショートカットキー登録：完了 ({shortcut_key})")
-        winsound.Beep(1200, 100)
-        winsound.Beep(1600, 100)  # Hz, ms
-        return None
-
-    def _send_command(self, command, key_str=None):
+    def _send_command(self, command, action=None, key_str=None):
         """待ち受けのスレッドにお願いして、終わるまで待つ"""
         with self._command_lock:
-            self._command = (command, key_str)
+            self._command = (command, action, key_str)
             self._command_done.clear()
             _user32.PostThreadMessageW(self._thread_id, WM_APP_COMMAND, 0, 0)
             if not self._command_done.wait(timeout=3):
                 return "failed", "ショートカットキーの待ち受けが応答しません"
             return self._command_result
 
-    def suspend_shortcut(self):
-        """登録を一旦外す(画面でキーを押して決めるあいだ、今のキーが画面に届くように)"""
-        self._send_command("suspend")
+    def suspend_all_shortcuts(self):
+        """全部の登録を一旦外す(画面でキーを押して決めるあいだ、どのキーも画面に届くように)"""
+        self._send_command("suspend_all")
 
-    def register_shortcut(self, key_str):
-        """今の登録を外して key_str を登録し直す。成功なら None、失敗なら (種類, 詳細)
-        失敗したときは何も登録されていないので、呼んだ側で元のキーを登録し直すこと"""
-        return self._send_command("register", key_str)
+    def register_shortcut(self, action, key_str):
+        """役割に key_str を登録し直す("" なら外すだけ)。成功なら None、失敗なら (種類, 詳細)
+        失敗したときはその役割に何も登録されていないので、呼んだ側で元のキーを登録し直すこと"""
+        return self._send_command("register", action, key_str)

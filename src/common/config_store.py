@@ -58,6 +58,7 @@ LANGUAGE_CHOICES = [
 LANGUAGE_DEFAULT = "ja"
 
 SHORTCUT_DEFAULT = "f9"
+UNDO_KEY_DEFAULT = "shift+f9"  # 直前の入力を取り消す。"" なら割り当てない
 
 # 本体の窓の見た目
 THEME_CHOICES = [
@@ -102,6 +103,7 @@ def defaults():
         "audio_device_name": DEFAULT_DEVICE_LABEL,
         "audio_device_sample_rate": SAMPLE_RATE,
         "shortcut_key": SHORTCUT_DEFAULT,
+        "undo_key": UNDO_KEY_DEFAULT,
         "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
         # インジケーターの位置(画面の左上からのピクセル)。つまんで動かすと保存される
@@ -161,6 +163,11 @@ def _fix_positive_int(v, default):
     return default
 
 
+def _fix_optional_key(v, default):
+    # 割り当てないキーは ""(空)。文字でなければ初期値に戻す
+    return v.strip() if isinstance(v, str) else default
+
+
 def _fix_bool(v, default):
     return v if isinstance(v, bool) else default
 
@@ -182,6 +189,7 @@ def normalize(raw):
         "audio_device_name": _fix_text(merged["audio_device_name"], d["audio_device_name"]),
         "audio_device_sample_rate": _fix_positive_int(merged["audio_device_sample_rate"], d["audio_device_sample_rate"]),
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
+        "undo_key": _fix_optional_key(merged["undo_key"], d["undo_key"]),
         "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),

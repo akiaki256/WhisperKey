@@ -36,7 +36,18 @@
             <label class="card-title" for="btn-shortcut">入力モードの切り替え</label>
             <div class="card-desc">録音のオン/オフを切り替えます</div>
           </div>
-          <div class="card-control"><button id="btn-shortcut" class="shortcut-button"></button></div>
+          <div class="card-control"><button class="shortcut-button" data-action="toggle"></button></div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">直前の入力を取り消す</div>
+            <div class="card-desc">最後に入力した文章を消します(1回だけ)。入力のあとにカーソルを動かしていると、違うところが消えるので注意してください</div>
+          </div>
+          <div class="card-control">
+            <button class="shortcut-button" data-action="undo"></button>
+            <button class="icon-button shortcut-clear" data-action="undo" title="割り当てない"><span class="icon">&#xE711;</span></button>
+          </div>
         </div>
 
         <!-- 押すと広がるカード。中身はキーの判定(key_shortcut.py の check_new_shortcut と

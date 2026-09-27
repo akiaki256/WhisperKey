@@ -95,6 +95,7 @@ from gui_indicator import IndicatorWindow
 import tray_icon
 import main_window
 import history
+import undo_input
 
 
 # ========================================================
@@ -110,9 +111,13 @@ history.load()  # 入力履歴(history.json)を読み込む
 ## faster-Whisperのモデル読み込み
 model = load_model(settings["model_size"])
 
-## shortcut_key押下で聞き取りモード切り替え
+## ショートカットキーの登録(入力モードの切り替え・直前の入力を取り消す)
 ## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)
-shortcut_error = state_manager.start_listener(settings["shortcut_key"])
+state_manager.set_handler("undo", undo_input.undo)
+shortcut_errors = state_manager.start_listener({
+    "toggle": settings["shortcut_key"],
+    "undo": settings["undo_key"],
+})
 
 print("動作準備完了")
 
@@ -151,7 +156,7 @@ tray_icon.start_tray_in_background()
 ## 本体の窓を表示(閉じられるまでここで待つ)
 main_window.create(
     loaded_model=settings["model_size"],
-    shortcut_error=shortcut_error[0] if shortcut_error else None,
+    shortcut_errors={action: error[0] for action, error in shortcut_errors.items()},
 )
 main_window.start()
 
