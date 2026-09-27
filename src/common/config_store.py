@@ -59,7 +59,8 @@ LANGUAGE_CHOICES = [
 LANGUAGE_DEFAULT = "ja"
 
 SHORTCUT_DEFAULT = "f9"
-UNDO_KEY_DEFAULT = "shift+f9"  # 直前の入力を取り消す。"" なら割り当てない
+UNDO_KEY_DEFAULT = "f10"  # 直前の入力を取り消す。"" なら割り当てない
+MODE_KEY_DEFAULT = "shift+f9"  # 入力モード切り替え(通常 ⇔ プッシュトゥトーク)。"" なら割り当てない
 
 # 本体の窓の見た目
 THEME_CHOICES = [
@@ -113,7 +114,8 @@ def defaults():
         "audio_device_sample_rate": SAMPLE_RATE,
         "shortcut_key": SHORTCUT_DEFAULT,
         "undo_key": UNDO_KEY_DEFAULT,
-        # True なら入力モードの切り替えキーを押している間だけ録音する(False は押すたびにオン/オフ)
+        "mode_key": MODE_KEY_DEFAULT,
+        # True なら音声入力のキーを押している間だけ録音する(False は押すたびにオン/オフ)
         "push_to_talk": False,
         # 効果音(assets/sounds の wav のファイル名)。"" なら鳴らさない
         "sound_startup": "起動(デフォルト).wav",
@@ -210,6 +212,7 @@ def normalize(raw):
         "audio_device_sample_rate": _fix_positive_int(merged["audio_device_sample_rate"], d["audio_device_sample_rate"]),
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
         "undo_key": _fix_optional_text(merged["undo_key"], d["undo_key"]),
+        "mode_key": _fix_optional_text(merged["mode_key"], d["mode_key"]),
         "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
         "sound_startup": _fix_optional_text(merged["sound_startup"], d["sound_startup"]),
         "sound_on": _fix_optional_text(merged["sound_on"], d["sound_on"]),

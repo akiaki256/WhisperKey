@@ -46,8 +46,9 @@ ERROR_HOTKEY_ALREADY_REGISTERED = 1409
 
 # ショートカットの役割と、Windows に登録するときの番号(役割が増えたらここに足す)
 ACTIONS = {
-    "toggle": 1,  # 入力モードの切り替え
+    "toggle": 1,  # 音声入力(押すたびにオン/オフ、プッシュトゥトークなら押している間だけ)
     "undo": 2,    # 直前の入力を取り消す
+    "mode": 3,    # 入力モード切り替え(通常 ⇔ プッシュトゥトーク)
 }
 
 _MODIFIER_FLAGS = {
@@ -139,7 +140,7 @@ class MainStateManager():
             cls._instance._pending = 0
             cls._instance._pending_lock = threading.Lock()
             # 役割のキーが押されたとき / 離されたときの処理
-            cls._instance._handlers = {"toggle": cls._instance.press_toggle}
+            cls._instance._handlers = {"toggle": cls._instance.press_toggle, "mode": cls._instance.switch_mode}
             cls._instance._release_handlers = {"toggle": cls._instance.release_toggle}
         return cls._instance
 
@@ -173,7 +174,7 @@ class MainStateManager():
         self.set_state("start" if self.state == "stop" else "stop")
         return self.state
 
-    # 入力モードの切り替えキー
+    # 音声入力のキー
     # 切り替えモード: 押すたびにオン/オフ
     # プッシュトゥトーク(push_to_talk): 押したらオン、離したらオフ
     #   離したところまでの音声は、録音の係(audio.py)がすぐ文字起こしに回す
@@ -186,6 +187,11 @@ class MainStateManager():
     def release_toggle(self):
         if config.get("push_to_talk"):
             self.set_state("stop")
+
+    def switch_mode(self):
+        """入力モード切り替えのキー: 通常 ⇔ プッシュトゥトーク"""
+        self.set_push_to_talk(not config.get("push_to_talk"))
+        print(f"入力モード：{'プッシュトゥトーク' if config.get('push_to_talk') else '通常'}")
 
     def set_push_to_talk(self, enabled):
         """プッシュトゥトークを切り替えて保存する(画面の表示は config の知らせでそろう)

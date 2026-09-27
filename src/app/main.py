@@ -112,12 +112,13 @@ history.load()  # 入力履歴(history.json)を読み込む
 ## faster-Whisperのモデル読み込み
 model = load_model(settings["model_size"])
 
-## ショートカットキーの登録(入力モードの切り替え・直前の入力を取り消す)
+## ショートカットキーの登録(音声入力・入力モード切り替え・直前の入力を取り消す)
 ## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)
 state_manager.set_handler("undo", undo_input.undo)
 shortcut_errors = state_manager.start_listener({
     "toggle": settings["shortcut_key"],
     "undo": settings["undo_key"],
+    "mode": settings["mode_key"],
 })
 
 print("動作準備完了")

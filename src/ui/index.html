@@ -33,11 +33,22 @@
 
         <div class="card">
           <div class="card-text">
-            <div class="card-title">入力モードの切り替え</div>
+            <div class="card-title">音声入力</div>
             <!-- プッシュトゥトークかどうかで、settings.js が説明を書き換える -->
-            <div class="card-desc" id="toggle-key-desc">録音のオン/オフを切り替えます</div>
+            <div class="card-desc" id="toggle-key-desc">押すたびに録音のオン/オフを切り替えます</div>
           </div>
           <div class="card-control"><button class="shortcut-button" data-action="toggle"></button></div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">入力モード切り替え</div>
+            <div class="card-desc">通常(押すたびにオン/オフ)とプッシュトゥトーク(押している間だけ)を切り替えます</div>
+          </div>
+          <div class="card-control">
+            <button class="shortcut-button" data-action="mode"></button>
+            <button class="icon-button shortcut-clear" data-action="mode" title="割り当てない"><span class="icon">&#xE711;</span></button>
+          </div>
         </div>
 
         <div class="card">
@@ -196,7 +207,7 @@
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="push-to-talk">プッシュトゥトーク</label>
-            <div class="card-desc">オンにすると、入力モードの切り替えキーを押している間だけ録音します</div>
+            <div class="card-desc">オンにすると、音声入力のキーを押している間だけ録音します</div>
           </div>
           <div class="card-control">
             <span id="push-to-talk-label" class="toggle-label"></span>

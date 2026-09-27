@@ -218,13 +218,13 @@ function onSettingsChanged(changed) {
   }
 }
 
-// プッシュトゥトークのスイッチと、ショートカットタブの「入力モードの切り替え」の説明をそろえる
+// プッシュトゥトークのスイッチと、ショートカットタブの「音声入力」の説明をそろえる
 function showPushToTalk(enabled) {
   const toggle = document.getElementById("push-to-talk");
   toggle.checked = enabled;
   document.getElementById("push-to-talk-label").textContent = enabled ? "オン" : "オフ";
   document.getElementById("toggle-key-desc").textContent =
-    enabled ? "押している間だけ録音します(プッシュトゥトーク)" : "録音のオン/オフを切り替えます";
+    enabled ? "押している間だけ録音します(プッシュトゥトーク)" : "押すたびに録音のオン/オフを切り替えます";
 }
 
 document.getElementById("push-to-talk").addEventListener("change", async (e) => {

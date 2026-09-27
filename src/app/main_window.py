@@ -37,8 +37,8 @@ _loaded_model = None  # 起動時に読み込んだモデル。設定と違え�
 _shortcut_errors = {}  # 起動時にショートカットキーを登録できなかった {役割: 理由("taken" など)}。登録できたら消す
 
 # ショートカットの役割ごとの、config の項目名と画面での名前(key_shortcut.ACTIONS と合わせる)
-SHORTCUT_CONFIG_KEYS = {"toggle": "shortcut_key", "undo": "undo_key"}
-SHORTCUT_LABELS = {"toggle": "入力モードの切り替え", "undo": "直前の入力を取り消す"}
+SHORTCUT_CONFIG_KEYS = {"toggle": "shortcut_key", "mode": "mode_key", "undo": "undo_key"}
+SHORTCUT_LABELS = {"toggle": "音声入力", "mode": "入力モード切り替え", "undo": "直前の入力を取り消す"}
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {
@@ -262,7 +262,7 @@ class Api:
 def _check_shortcut(action, key_str):
     """画面で選ばれたキーを、その役割に使ってよいか。よければ None、だめなら理由の文"""
     if key_str == "":
-        return "入力モードの切り替えは、割り当てないにはできません" if action == "toggle" else None
+        return "音声入力は、割り当てないにはできません" if action == "toggle" else None
     problem = key_shortcut.check_new_shortcut(key_str)
     if problem:
         return problem
