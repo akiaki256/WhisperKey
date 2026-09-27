@@ -69,6 +69,14 @@ THEME_CHOICES = [
 ]
 THEME_DEFAULT = "system"
 
+# インジケーターの表示方法
+INDICATOR_MODE_CHOICES = [
+    ("dot", "丸だけ"),
+    ("panel", "操作パネル"),
+    ("hidden", "表示しない"),
+]
+INDICATOR_MODE_DEFAULT = "dot"
+
 # 入力履歴の件数
 HISTORY_LIMIT_CHOICES = [
     (5, "5 件"),
@@ -109,7 +117,8 @@ def defaults():
         "push_to_talk": False,
         "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
-        # インジケーターの位置(画面の左上からのピクセル)。つまんで動かすと保存される
+        # インジケーターの表示方法と位置(画面の左上からのピクセル。丸と操作パネルで共通)。つまんで動かすと保存される
+        "indicator_mode": INDICATOR_MODE_DEFAULT,
         "indicator_x": 5,
         "indicator_y": 20,
         "theme": THEME_DEFAULT,
@@ -196,6 +205,7 @@ def normalize(raw):
         "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
         "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
+        "indicator_mode": _fix_choice(merged["indicator_mode"], INDICATOR_MODE_CHOICES, d["indicator_mode"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
         "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),

@@ -149,6 +149,7 @@ async function loadSettings() {
   bindSelect(document.getElementById("language-select"), "language", s.languages, s.values.language);
   buildModelList(document.getElementById("model-list"), s.models, s.values.model_size);
   bindSelect(document.getElementById("theme-select"), "theme", s.themes, s.values.theme, applyTheme);
+  bindSelect(document.getElementById("indicator-select"), "indicator_mode", s.indicator_modes, s.values.indicator_mode);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
 }
 

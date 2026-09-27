@@ -188,6 +188,13 @@ class MainStateManager():
         if config.get("push_to_talk"):
             self.set_state("stop")
 
+    def set_push_to_talk(self, enabled):
+        """プッシュトゥトークを切り替えて保存する(画面の表示は config の知らせでそろう)
+        オンにしたときは録音をオフにする(録音オンのまま切り替えても、ここから「押している間だけ」にそろえる)"""
+        config.update({"push_to_talk": enabled})
+        if enabled:
+            self.set_state("stop")
+
     # ---- ショートカットキー(役割ごと) ----
 
     def set_handler(self, action, fn):
