@@ -109,7 +109,8 @@ settings = load_config()  # config.jsonを読み込む
 model = load_model(settings["model_size"])
 
 ## shortcut_key押下で聞き取りモード切り替え
-state_manager.start_listener(settings["shortcut_key"])
+## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)
+shortcut_error = state_manager.start_listener(settings["shortcut_key"])
 
 print("動作準備完了")
 
@@ -146,7 +147,10 @@ threading.Thread(
 tray_icon.start_tray_in_background()
 
 ## 本体の窓を表示(閉じられるまでここで待つ)
-main_window.create(loaded_model=settings["model_size"])
+main_window.create(
+    loaded_model=settings["model_size"],
+    shortcut_error=shortcut_error[0] if shortcut_error else None,
+)
 main_window.start()
 
 ## 窓の×で閉じられたら、アプリごと終了する

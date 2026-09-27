@@ -19,12 +19,16 @@ import webview
 import audio_devices
 import config
 import config_store
+import key_shortcut
 import paths
 import tray_icon
+
+_state_manager = key_shortcut.MainStateManager()
 
 
 _window = None
 _loaded_model = None  # 起動時に読み込んだモデル。設定と違えば再起動が必要
+_shortcut_error = None  # 起動時にショートカットキーを登録できなかった理由("taken" など)。登録できたら None
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {"volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme"}
@@ -92,6 +96,8 @@ class Api:
         values = config.get_all()
         return {
             "values": {key: values[key] for key in EDITABLE_KEYS},
+            "shortcut_key": values["shortcut_key"],  # 変えるときは end_shortcut_capture から
+            "shortcut_error": _shortcut_error,
             "volume": {"min": config_store.VOLUME_THRESHOLD_MIN, "max": config_store.VOLUME_THRESHOLD_MAX},
             "silence": {
                 "min": config_store.SILENCE_DURATION_MIN,
@@ -126,11 +132,48 @@ class Api:
     def restart(self):
         tray_icon.restart_app()
 
+    # ---- ショートカットキー(キーを押して決める) ----
+    # 始めるときに今のキーの登録を外し(今のキーも画面に届くように)、終わるときに登録し直す
 
-def create(loaded_model):
-    """窓を作る(表示されるのは start() のあと)"""
-    global _window, _loaded_model
+    def begin_shortcut_capture(self):
+        _state_manager.suspend_shortcut()
+
+    def end_shortcut_capture(self, key_str):
+        """key_str を登録して保存する。None なら取り消し。
+        使えない・登録できなかったときは、元のキーを登録し直してエラーを返す"""
+        global _shortcut_error
+        old = config.get("shortcut_key")
+        problem = None
+
+        if key_str and key_str != old:
+            problem = key_shortcut.check_new_shortcut(key_str)
+            if problem is None:
+                error = _state_manager.register_shortcut(key_str)
+                if error is None:
+                    _shortcut_error = None
+                    try:
+                        config.update({"shortcut_key": key_str})
+                    except OSError as e:
+                        return {"value": key_str, "error": f"設定の保存に失敗しました(このキーは次の起動まで有効です): {e}"}
+                    return {"value": key_str}
+                problem = "ほかのソフトが使用中です" if error[0] == "taken" else f"登録できませんでした: {error[1]}"
+
+        if _state_manager.register_shortcut(old) is None:
+            _shortcut_error = None  # 起動時に取られていたキーが、あとで空いた場合
+        else:
+            problem = (problem + "。" if problem else "") + "元のキーも登録できませんでした。別のキーを選んでください"
+        return {"value": old, "error": problem}
+
+
+def create(loaded_model, shortcut_error=None):
+    """窓を作る(表示されるのは start() のあと)
+
+    shortcut_error: 起動時にショートカットキーを登録できなかった理由。
+    あれば画面はショートカットタブを開いて知らせる
+    """
+    global _window, _loaded_model, _shortcut_error
     _loaded_model = loaded_model
+    _shortcut_error = shortcut_error
     config.add_listener(_on_config_changed)
 
     theme = config.get("theme")

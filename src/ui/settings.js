@@ -2,18 +2,20 @@
 // 値を変えた瞬間に Python へ送って保存する。Python が直した値が返ってくるので、それを表示し直す
 // (範囲外の数字を打ち込んでも、端に寄せた値が表示される)
 
+// 今開いているタブのエラーの帯に message を出す。null なら帯を隠す
+function showError(message) {
+  const errorEl = document.querySelector("section.active .infobar.error");
+  errorEl.textContent = message ?? "";
+  errorEl.hidden = !message;
+}
+
 // 一つの項目を保存する。直したあとの値を返す(失敗したら null)
-// 失敗したときは、今開いているタブのエラーの帯に出す
 async function saveSetting(key, value) {
   const result = await window.pywebview.api.update_setting(key, value);
-  const errorEl = document.querySelector("section.active .infobar.error");
-
+  showError(result.error);
   if (result.error) {
-    errorEl.textContent = result.error;
-    errorEl.hidden = false;
     return null;
   }
-  errorEl.hidden = true;
   document.getElementById("restart-notice").hidden = !result.restart_needed;
   return result.value;
 }
@@ -131,6 +133,14 @@ async function loadSettings() {
     (v) => Number(v).toFixed(1),
   );
   showSilence(s.values.silence_duration);
+
+  // ショートカットキー(変えるしくみは settings_shortcut.js)
+  showShortcut(s.shortcut_key);
+  if (s.shortcut_error) {
+    // 起動時に登録できなかった。ショートカットタブを開いて知らせる
+    showTab("shortcuts");
+    showError(startupShortcutMessage(s.shortcut_error, s.shortcut_key));
+  }
 
   // マイク
   bindSelect(document.getElementById("mic-select"), "audio_device_name",

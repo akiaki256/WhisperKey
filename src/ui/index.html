@@ -25,8 +25,48 @@
 
     <main>
       <section id="tab-shortcuts">
+        <!-- ショートカットの一覧と、キーの割り当て。割り当てのしくみは settings_shortcut.js -->
         <h1>ショートカット</h1>
-        <div class="card"><div class="card-text"><div class="card-desc">ショートカット一覧(これから)</div></div></div>
+        <p id="shortcuts-error" class="infobar error" hidden></p>
+        <p class="section-desc">右のボタンを押してから、使いたいキーを押すと割り当てられます</p>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="btn-shortcut">入力モードの切り替え</label>
+            <div class="card-desc">録音のオン/オフを切り替えます</div>
+          </div>
+          <div class="card-control"><button id="btn-shortcut" class="shortcut-button"></button></div>
+        </div>
+
+        <!-- 押すと広がるカード。中身はキーの判定(key_shortcut.py の check_new_shortcut と
+             settings_shortcut.js の mainKeyName)に合わせて書く -->
+        <details class="card expander">
+          <summary>
+            <span class="icon">&#xE946;</span>
+            <span class="card-text">
+              <span class="card-title">割り当てられるキー</span>
+              <span class="card-desc">使えるキーの組み合わせと、その理由</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="expander-body">
+            <p>割り当てたキーは、WhisperKey が起動している間、<strong>ほかのソフトでは使えなくなります</strong>。ふだんの文字入力に使うキーは選べないようにしています。</p>
+            <table>
+              <tr>
+                <th>Ctrl か Alt を含む</th>
+                <td>A〜Z、0〜9、Space、Enter、F1〜F24 と組み合わせられます。Shift を足してもかまいません<br><span class="example">例: Ctrl + Space、Ctrl + Alt + R、Alt + Shift + F2</span></td>
+              </tr>
+              <tr>
+                <th>単体・Shift だけ</th>
+                <td>F1〜F24 だけ選べます<br><span class="example">例: F9、Shift + F10</span></td>
+              </tr>
+              <tr>
+                <th>使えないキー</th>
+                <td>Esc、Tab、矢印キー、Windows キーなど。ほかのソフトが使用中のキーも割り当てられません</td>
+              </tr>
+            </table>
+          </div>
+        </details>
       </section>
 
       <section id="tab-history">
@@ -111,7 +151,7 @@
         <h2>移行中</h2>
         <div class="card">
           <div class="card-text">
-            <div class="card-title">ショートカットキー</div>
+            <div class="card-title">辞書とコマンド</div>
             <div class="card-desc">まだ今までの設定画面で設定します</div>
           </div>
           <div class="card-control"><button id="btn-legacy-config">今の設定画面を開く</button></div>
@@ -122,5 +162,6 @@
 
   <script src="app.js"></script>
   <script src="settings.js"></script>
+  <script src="settings_shortcut.js"></script>
 </body>
 </html>
