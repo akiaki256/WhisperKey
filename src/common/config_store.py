@@ -80,6 +80,9 @@ def defaults():
         "shortcut_key": SHORTCUT_DEFAULT,
         "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
+        # インジケーターの位置(画面の左上からのピクセル)。つまんで動かすと保存される
+        "indicator_x": 5,
+        "indicator_y": 20,
     }
 
 
@@ -96,6 +99,13 @@ def _fix_int_in_range(v, min_val, max_val, default):
     if not _is_number(v):
         return default
     return max(min_val, min(max_val, int(v)))
+
+
+def _fix_int(v, default):
+    # 画面の位置など、負の値もありうる整数(メインより左や上にあるモニター)
+    if not _is_number(v):
+        return default
+    return int(v)
 
 
 def _fix_silence(v, default):
@@ -142,6 +152,8 @@ def normalize(raw):
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
         "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
+        "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
+        "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
     }
 
 

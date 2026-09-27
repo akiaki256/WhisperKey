@@ -188,7 +188,9 @@ class ConfigApp(ctk.CTk):
             return
         
         # 3. config.json 用のdictを構築(editionは書き込まない)
+        # 設定画面に無い項目(インジケーターの位置など)を消さないよう、今のファイルの上に重ねる
         new_config = {
+            **config_io.load_config(),
             "volume_threshold": basic_values["volume_threshold"],
             "silence_duration": basic_values["silence_duration"],
             "audio_device_index": basic_values["audio_device_index"],

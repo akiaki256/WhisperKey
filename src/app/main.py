@@ -126,7 +126,7 @@ wav_queue = Queue()
 ## メインスレッドは本体の窓(pywebview)が使うため。
 ## tkinter の窓の作成から mainloop までを、すべてこのスレッドの中で行う
 def run_indicator():
-    IndicatorWindow().run()
+    IndicatorWindow(settings["indicator_x"], settings["indicator_y"]).run()
 
 threading.Thread(target=run_indicator, name="indicator", daemon=True).start()
 
