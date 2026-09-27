@@ -95,9 +95,13 @@ function soundChoices(names, current) {
 }
 
 // 試し聞き(今ドロップダウンで選んでいる音を鳴らす)
+// 鳴っているあいだ(だいたい)、アイコンをアクセント色にする
 document.querySelectorAll(".sound-preview").forEach((button) => {
   button.addEventListener("click", () => {
     window.pywebview.api.play_sound(document.getElementById(button.dataset.for).value);
+    button.classList.add("playing");
+    clearTimeout(button.playingTimer);
+    button.playingTimer = setTimeout(() => button.classList.remove("playing"), 800);
   });
 });
 
@@ -202,7 +206,12 @@ async function refreshMics(current) {
 }
 
 // マイクを差し直したとき用。今の選択はそのまま残す
-document.getElementById("btn-refresh-mics").addEventListener("click", () => {
+document.getElementById("btn-refresh-mics").addEventListener("click", (e) => {
+  // 押したら矢印を一回転させる(一覧を取り直したことが見てわかるように)
+  const icon = e.currentTarget.querySelector(".icon");
+  icon.classList.remove("spin");
+  void icon.offsetWidth;   // いったん描き直させて、続けて押しても毎回回るようにする
+  icon.classList.add("spin");
   refreshMics(document.getElementById("mic-select").value);
 });
 
