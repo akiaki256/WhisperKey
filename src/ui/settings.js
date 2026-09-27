@@ -52,10 +52,7 @@ function bindSlider(key, rangeEl, numberEl, format) {
 // ドロップダウンを作る。choices は [[保存値, 表示ラベル], ...]
 // onSaved は保存できたあとに呼ぶ(テーマの切り替えなど)
 function bindSelect(selectEl, key, choices, current, onSaved) {
-  selectEl.innerHTML = "";
-  for (const [value, label] of choices) {
-    selectEl.add(new Option(label, value, false, value === current));
-  }
+  fillSelect(selectEl, choices, current);
   selectEl.addEventListener("change", async () => {
     const value = await saveSetting(key, selectEl.value);
     if (value !== null) {
@@ -63,6 +60,24 @@ function bindSelect(selectEl, key, choices, current, onSaved) {
       if (onSaved) onSaved(value);
     }
   });
+}
+
+// ドロップダウンの中身だけを入れ直す(マイクの一覧の更新でも使う)
+function fillSelect(selectEl, choices, current) {
+  selectEl.innerHTML = "";
+  for (const [value, label] of choices) {
+    selectEl.add(new Option(label, value, false, value === current));
+  }
+}
+
+// マイクの名前の一覧を、ドロップダウンの選択肢にする
+// 今選んでいるマイクが外されていたら、「見つかりません」を付けて残す(勝手に別のマイクに変えない)
+function micChoices(names, current) {
+  const choices = names.map((name) => [name, name]);
+  if (!names.includes(current)) {
+    choices.push([current, `${current}(見つかりません)`]);
+  }
+  return choices;
 }
 
 // モデルの一覧を、ラジオボタンのカードで作る。models は [{value, name, desc}, ...]
@@ -117,11 +132,36 @@ async function loadSettings() {
   );
   showSilence(s.values.silence_duration);
 
+  // マイク
+  bindSelect(document.getElementById("mic-select"), "audio_device_name",
+    micChoices(s.mics, s.values.audio_device_name), s.values.audio_device_name);
+
   // 言語・モデル・テーマ
   bindSelect(document.getElementById("language-select"), "language", s.languages, s.values.language);
   buildModelList(document.getElementById("model-list"), s.models, s.values.model_size);
   bindSelect(document.getElementById("theme-select"), "theme", s.themes, s.values.theme, applyTheme);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
+}
+
+// マイクの一覧を取り直して、current を選んだ状態にする
+async function refreshMics(current) {
+  const selectEl = document.getElementById("mic-select");
+  const names = await window.pywebview.api.get_mics();
+  fillSelect(selectEl, micChoices(names, current), current);
+}
+
+// マイクを差し直したとき用。今の選択はそのまま残す
+document.getElementById("btn-refresh-mics").addEventListener("click", () => {
+  refreshMics(document.getElementById("mic-select").value);
+});
+
+// Python 側で設定が変わったときに呼ばれる(main_window.py の _on_config_changed)
+// 例: 選んでいたマイクが抜かれて、録音の係が「既定のデバイス」に書き換えたとき
+// changed は変わった項目だけの { 項目名: 値 }
+function onSettingsChanged(changed) {
+  if ("audio_device_name" in changed) {
+    refreshMics(changed.audio_device_name);
+  }
 }
 
 document.getElementById("btn-restart").addEventListener("click", () => {

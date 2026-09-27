@@ -11,10 +11,12 @@
 
 import json
 import os
+import threading
 import winreg
 
 import webview
 
+import audio_devices
 import config
 import config_store
 import paths
@@ -25,7 +27,7 @@ _window = None
 _loaded_model = None  # 起動時に読み込んだモデル。設定と違えば再起動が必要
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
-EDITABLE_KEYS = {"volume_threshold", "silence_duration", "language", "model_size", "theme"}
+EDITABLE_KEYS = {"volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme"}
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
 BG_LIGHT = "#F3F3F3"
@@ -43,6 +45,19 @@ def _model_list():
         name, _, desc = label.partition(": ")
         models.append({"value": value, "name": name, "desc": desc})
     return models
+
+
+def _on_config_changed(changed):
+    """設定が変わったら画面に知らせる(録音の係がマイクを「既定」に戻したときなど)"""
+    if _window is None:
+        return
+    # evaluate_js は画面の読み込みが終わるまで待つことがある。
+    # 呼んだ側(録音の係など)を止めないよう、別のスレッドで呼ぶ
+    threading.Thread(
+        target=_window.evaluate_js,
+        args=(f"onSettingsChanged({json.dumps(changed)})",),
+        daemon=True,
+    ).start()
 
 
 def _system_is_dark():
@@ -86,13 +101,19 @@ class Api:
             "languages": config_store.LANGUAGE_CHOICES,
             "models": _model_list(),
             "themes": config_store.THEME_CHOICES,
+            "mics": self.get_mics(),
             "restart_needed": values["model_size"] != _loaded_model,
         }
+
+    def get_mics(self):
+        """今つながっているマイクの一覧(名前)。先頭は「既定のデバイスに自動接続」。更新ボタンからも呼ばれる"""
+        return audio_devices.get_device_name_list()
 
     def update_setting(self, key, value):
         """一つの項目を変えて保存する。直したあとの値を返す(画面はその値を表示し直す)"""
         if key not in EDITABLE_KEYS:
             return {"error": f"変更できない項目です: {key}"}
+
         try:
             values = config.update({key: value})
         except OSError as e:
@@ -110,6 +131,7 @@ def create(loaded_model):
     """窓を作る(表示されるのは start() のあと)"""
     global _window, _loaded_model
     _loaded_model = loaded_model
+    config.add_listener(_on_config_changed)
 
     theme = config.get("theme")
     dark = theme == "dark" or (theme == "system" and _system_is_dark())

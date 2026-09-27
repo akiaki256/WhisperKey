@@ -7,6 +7,8 @@
 - update(changes): 一部の項目を変えて config.json に保存する。値は config_store が直す
   本体の中で config.json に書き込むときは、必ずここを通す
   (別々に書き込むと、片方の変更をもう片方が古い値で上書きしてしまうため)
+- add_listener(fn): 設定が変わったら fn(変わった項目の dict) を呼んでもらう
+  (録音の係がマイクを「既定」に戻したときに、画面の表示も切り替えるため)
 """
 
 import sys
@@ -17,6 +19,7 @@ from error_dialog import show_error
 
 _current = None
 _lock = threading.Lock()
+_listeners = []
 
 
 def load_config():
@@ -40,6 +43,10 @@ def get_all():
     return dict(_current)
 
 
+def add_listener(fn):
+    _listeners.append(fn)
+
+
 def update(changes):
     """changes を今の設定に重ねて保存し、直したあとの設定を返す。保存に失敗したら OSError"""
     global _current
@@ -48,4 +55,12 @@ def update(changes):
         config_store.save(new)
         # 丸ごと差し替えるので、ほかのスレッドが途中の状態を見ることはない
         _current = new
-        return dict(new)
+
+    # 知らせるのはロックの外で(受け取った側が update を呼んでも止まらないように)
+    changed = {key: new[key] for key in changes if key in new}
+    for fn in _listeners:
+        try:
+            fn(changed)
+        except Exception as e:
+            print(f"設定変更の通知でエラー: {e}")
+    return dict(new)

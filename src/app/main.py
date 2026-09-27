@@ -133,11 +133,7 @@ threading.Thread(target=run_indicator, name="indicator", daemon=True).start()
 ## 録音スレッド開始
 threading.Thread(
     target=recording_function,
-    args=(
-        settings["audio_device_index"],
-        settings["audio_device_sample_rate"],
-        wav_queue
-    )
+    args=(wav_queue,)
 ).start()
 
 ## 文字起こしスレッド開始

@@ -310,6 +310,12 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+/* アイコンだけのボタン(正方形) */
+button.icon-button {
+  width: 32px;
+  padding: 0;
+}
+
 button.accent {
   border-color: transparent;
   background: var(--accent);

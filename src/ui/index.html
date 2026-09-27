@@ -71,6 +71,16 @@
         <h2>録音</h2>
         <div class="card">
           <div class="card-text">
+            <label class="card-title" for="mic-select">マイク</label>
+            <div class="card-desc">選んだ瞬間に切り替わります</div>
+          </div>
+          <div class="card-control">
+            <select id="mic-select"></select>
+            <button id="btn-refresh-mics" class="icon-button" title="マイクの一覧を更新"><span class="icon">&#xE72C;</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text">
             <label class="card-title" for="volume-range">音量しきい値</label>
             <div class="card-desc">録音を開始する音量レベル。値を上げるほど静かな音を拾わなくなります</div>
           </div>
@@ -101,7 +111,7 @@
         <h2>移行中</h2>
         <div class="card">
           <div class="card-text">
-            <div class="card-title">マイクとショートカットキー</div>
+            <div class="card-title">ショートカットキー</div>
             <div class="card-desc">まだ今までの設定画面で設定します</div>
           </div>
           <div class="card-control"><button id="btn-legacy-config">今の設定画面を開く</button></div>
