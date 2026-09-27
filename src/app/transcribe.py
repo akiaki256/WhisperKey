@@ -3,6 +3,9 @@ import pyperclip
 import keyboard
 from convert_dict import load_convert_dict, convert_text
 from command import load_command_dict, execute_command
+from key_shortcut import MainStateManager
+
+state_manager = MainStateManager()
 
 
 # ハルシネーションフレーズリスト
@@ -59,44 +62,48 @@ def whisper_function(model, language, wav_queue):
     while True:
         print("Whisperスレッド：キュー待機中...")
         filepath = wav_queue.get()
-        print(f"処理開始: {filepath}")
+        try:
+            print(f"処理開始: {filepath}")
 
-        segments, info = model.transcribe(filepath,
-                                            language=language,
-                                            beam_size=1,           # デフォルト5→1で高速化
-                                            best_of=1,            # デフォルト5→1で高速化  
-                                            temperature=0,        # 安定した出力
-                                            vad_filter=True,      # 音声検出フィルター
-                                            vad_parameters=dict(min_silence_duration_ms=500,  # 無音判定時間
-                                                                speech_pad_ms=200)            # 音声前後の余白
-                                            )
+            segments, info = model.transcribe(filepath,
+                                                language=language,
+                                                beam_size=1,           # デフォルト5→1で高速化
+                                                best_of=1,            # デフォルト5→1で高速化  
+                                                temperature=0,        # 安定した出力
+                                                vad_filter=True,      # 音声検出フィルター
+                                                vad_parameters=dict(min_silence_duration_ms=500,  # 無音判定時間
+                                                                    speech_pad_ms=200)            # 音声前後の余白
+                                                )
         
-        # テキストを結合
-        text = " ".join([segment.text for segment in segments])
+            # テキストを結合
+            text = " ".join([segment.text for segment in segments])
 
-        ## ハルシネーションフレーズを除去
-        filtered_text = filter_hallucination(text)
+            ## ハルシネーションフレーズを除去
+            filtered_text = filter_hallucination(text)
 
-        ## ユーザー辞書適応
-        if user_convert_dict_status == True:
-            result = convert_text(filtered_text, user_convert_dict)
-        else:
-            result = filtered_text
+            ## ユーザー辞書適応
+            if user_convert_dict_status == True:
+                result = convert_text(filtered_text, user_convert_dict)
+            else:
+                result = filtered_text
 
-        # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
-        # 辞書変換後の文字列で判定する(表記揺れを辞書側で吸収できるようにするため)
-        command_executed = False
-        if command_dict_status == True:
-            command_executed = execute_command(result, command_dict)
+            # コマンドキーワードが検知されたらコマンド実行、そうでなければ貼り付け
+            # 辞書変換後の文字列で判定する(表記揺れを辞書側で吸収できるようにするため)
+            command_executed = False
+            if command_dict_status == True:
+                command_executed = execute_command(result, command_dict)
 
-        if command_executed:
-            print("コマンドを実行")
+            if command_executed:
+                print("コマンドを実行")
             
-        elif result:  # 空文字でない場合のみ貼り付け
-            pyperclip.copy(result)
-            keyboard.send('ctrl+v')
-            print(f"入力: {result[:30]}...") # 最初の30文字を表示
+            elif result:  # 空文字でない場合のみ貼り付け
+                pyperclip.copy(result)
+                keyboard.send('ctrl+v')
+                print(f"入力: {result[:30]}...") # 最初の30文字を表示
 
-        # 処理済みファイルを削除
-        os.remove(filepath)
-        print(f"削除: {filepath}")
+            # 処理済みファイルを削除
+            os.remove(filepath)
+            print(f"削除: {filepath}")
+        finally:
+            # 途中でエラーが起きても、残りの数は必ず減らす(黄色が消えなくなるのを防ぐ)
+            state_manager.finish_pending()

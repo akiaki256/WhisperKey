@@ -1,4 +1,3 @@
-import time
 import os
 import sys
 import pyaudio
@@ -33,7 +32,6 @@ def recording_function(threshold, duration, device_index, sample_rate, wav_queue
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     RATE = sample_rate
-    global file_counter
 
     p = pyaudio.PyAudio()
 
@@ -76,56 +74,68 @@ def recording_function(threshold, duration, device_index, sample_rate, wav_queue
         # os._exitでプロセスごと強制終了させる
         os._exit(1)
 
+    def save_and_queue(frames):
+        """録音した音声を wav にして、文字起こしのキューに入れる"""
+        global file_counter
+
+        # ファイル名を作成
+        file_counter += 1
+        filename = f"temp_{file_counter}.wav"
+        output_path = os.path.join(temp_dir, filename)
+
+        # wavファイルとして書き込み
+        wf = wave.open(output_path, 'wb')
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(p.get_sample_size(FORMAT))
+        wf.setframerate(RATE)
+        wf.writeframes(b''.join(frames))
+        wf.close()
+
+        # 文字起こしが先に終わって数が負にならないよう、キューに入れる前に数える
+        state_manager.add_pending()
+        wav_queue.put(output_path)
+        print(f"キューに追加: {filename}")
+
+    # マイクはオフの間も読み続ける(読まずにいると、溜まった古い音声が次の録音に混ざるため)
+    # 録音オフのときは、声が大きくても「しきい値を超えていない」扱いにする
+    # 録音中にオフにされたら、そこまでの音声をすぐ文字起こしに回す
     silence_duration = 0
     frames = []
     state = "waiting"
 
     while True:
+        data = stream.read(CHUNK, exception_on_overflow=False)
+        audio_data = np.frombuffer(data, dtype=np.int16)
+        audio_data = audio_data.astype(np.float32)
+        volume = np.sqrt(np.mean(audio_data**2))  # 無音を判断するための指数になるvolumeを定義
 
-        if state_manager.get_state() == "start":
+        listening = state_manager.get_state() == "start"
 
-            while state_manager.get_state() == "start":
-                data = stream.read(CHUNK)
-                audio_data = np.frombuffer(data, dtype=np.int16)
-                audio_data = audio_data.astype(np.float32)
-                volume = np.sqrt(np.mean(audio_data**2))  # 無音を判断するための指数になるvolumeを定義
+        if state == "waiting":
+            if listening and volume > threshold:
+                print("録音開始！")
+                state = "recording"
+                frames = [data]
 
-                if state == "waiting":
-                    if volume > threshold:
-                        print("録音開始！")
-                        state = "recording"
-                        frames = [data]
+        elif state == "recording":
+            if not listening:
+                # オフが押されたところで区切る(押したあとの音声は入れない)
+                save_and_queue(frames)
+                state = "waiting"
+                silence_duration = 0
+                frames = []
+                continue
 
-                elif state == "recording":
-                    frames.append(data)
-                    if volume < threshold:
-                        silence_duration += CHUNK / RATE
-                        if silence_duration > duration:
+            frames.append(data)
+            if volume < threshold:
+                silence_duration += CHUNK / RATE
+                if silence_duration > duration:
+                    save_and_queue(frames)
 
-                            # ファイル名を作成
-                            file_counter += 1
-                            filename = f"temp_{file_counter}.wav"
-                            output_path = os.path.join(temp_dir, filename)
+                    # 待機モードの条件復元
+                    state = "waiting"
+                    silence_duration = 0
+                    frames = []
 
-                            # wavファイルとして書き込み
-                            wf = wave.open(output_path, 'wb')
-                            wf.setnchannels(CHANNELS)
-                            wf.setsampwidth(p.get_sample_size(FORMAT))
-                            wf.setframerate(RATE)
-                            wf.writeframes(b''.join(frames))
-                            wf.close()
-
-                            wav_queue.put(output_path)
-                            print(f"キューに追加: {filename}")
-
-                            # 待機モードの条件復元
-                            state = "waiting"
-                            silence_duration = 0
-                            frames = []
-
-                    else:
-                        silence_duration = 0
-
-        else:
-            time.sleep(0.1)
-
+            else:
+                silence_duration = 0

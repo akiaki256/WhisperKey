@@ -94,17 +94,36 @@ def _wait_for_release(vk):
 
 
 class MainStateManager():
+    """
+    アプリの状態を持つ(どこから MainStateManager() を呼んでも同じもの)
+
+    - state: 録音のオン("start")/オフ("stop")
+    - 文字起こしが残っている数: キューに入れる直前に add_pending()、
+      文字起こしが終わったら finish_pending() を呼ぶ。録音のオン/オフとは別に進む
+    """
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.state = "stop"
-            cls._instance.on_state_change = None
+            cls._instance._pending = 0
+            cls._instance._pending_lock = threading.Lock()
         return cls._instance
 
     def get_state(self):
         return self.state
+
+    def add_pending(self):
+        with self._pending_lock:
+            self._pending += 1
+
+    def finish_pending(self):
+        with self._pending_lock:
+            self._pending -= 1
+
+    def is_transcribing(self):
+        return self._pending > 0
 
     def toggle_state(self):
         if self.state == "stop":
@@ -115,9 +134,6 @@ class MainStateManager():
             self.state = "stop"
             print("聞き取りモード：ストップ")
             winsound.Beep(250, 200) # Hz, ms
-
-        if self.on_state_change:
-            self.on_state_change(self.state)
 
         return self.state
 
