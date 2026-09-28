@@ -119,6 +119,7 @@ model_missing = model_store.local_path(settings["model_size"]) is None
 if model_missing:
     print(f"モデル '{settings['model_size']}' が手元にありません。ダウンロードを待ちます")
 else:
+    startup.set_status(f"モデルを読み込み中({settings['model_size']})…")
     try:
         model.set_model(model.load_model(settings["model_size"]), settings["model_size"])
     except model.ModelLoadError as e:
