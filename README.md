@@ -2,7 +2,7 @@
 
 音声をキー入力に変換する、Windows用のローカル音声入力ツール。
 
-ショートカットキーで録音をオン/オフし、話した内容を自動で文字起こしして、現在フォーカスしているアプリケーションに貼り付けます。音声認識は OpenAI の Whisper モデルをローカル実行します。インターネット接続が必要なのは、初めて使うときのモデルのダウンロードだけで、そのあとはオフラインで動作します。
+ショートカットキーで録音をオン/オフし、話した内容を自動で文字起こしして、現在フォーカスしているアプリケーションに貼り付けます。音声認識は OpenAI の Whisper モデルをローカル実行します。GPU版では、聞き間違いをローカルの LLM で直してから入力することもできます。インターネット接続が必要なのは、初めて使うときのモデルのダウンロードだけで、そのあとはオフラインで動作します。
 
 ---
 
@@ -12,6 +12,7 @@
 - **Windows 常駐型**: システムトレイに常駐し、ショートカットキー(初期設定 F9)で録音をオン/オフします。キーを押している間だけ録音するプッシュトゥトークにも切り替えられます。
 - **辞書変換**: 頻出の誤認識や表記揺れをユーザー定義の辞書で補正できます。空文字への変換でハルシネーションのブロックも可能です。入力履歴でなぞった言葉を、そのまま辞書に登録できます。
 - **コマンド機能**: 特定のキーワードを発話するとブラウザでURLを開く、ローカルファイルを起動するなどのアクションを実行できます。
+- **入力補正(GPU版)**: 音声認識の聞き間違いや崩れた表記を、ローカルの LLM(gemma-4-E4B-it)で直してから入力します。直前の入力の話題も手がかりにします。よく使う言葉をよみがなと一緒に登録すると、補正の判断材料になります。LLM もパソコンの中で動くため、入力した文章は外部に送信されません。
 - **入力履歴と取り消し**: 最近の入力を一覧で確認・コピーでき、直前の入力はショートカットキー一つで取り消せます。
 - **CPU版 / GPU版の2エディション**: 使用するハードウェアに応じて選択可能。GPU版(NVIDIA)では高精度モデルも実用的な速度で動作します。
 
@@ -31,6 +32,8 @@
 - NVIDIA GeForce GTX 10シリーズ以降 (Compute Capability 6.0以上)
 - NVIDIA GPUドライバ バージョン 560 以上
 - 必要な VRAM: tiny・base で 0.5GB、small で 1GB、medium・kotoba-whisper-v2.0・large-v3-turbo で 2.5GB、large-v3 で 4.5GB
+- 入力補正も使うときに必要な VRAM: small で 4.5GB、medium・kotoba-whisper-v2.0・large-v3-turbo で 6GB、large-v3 で 8GB
+- 入力補正のモデル(gemma-4-E4B-it)は約 5.3GB あり、入力補正タブからダウンロードします
 
 ※ 必要な VRAM は、WhisperKey を単体で動かしたときの目安です。ほかのアプリ(ブラウザ、ゲーム、配信ソフトなど)も VRAM を使うため、一緒に使うアプリに合わせて余裕を見てください。
 
@@ -81,6 +84,8 @@ WhisperKey/
 │   │   ├── transcribe.py       # Whisperによる文字起こし(別スレッド)
 │   │   ├── model.py            # Whisperモデルのロード
 │   │   ├── model_store.py      # モデルの置き場所とダウンロード(初回のみ)
+│   │   ├── llm_correct.py      # 入力補正(GPU版。llama-server の起動・停止と、LLM による補正)
+│   │   ├── llm_vocab.py        # 入力補正の「よく使う言葉」(llm_vocab.csv)
 │   │   ├── key_shortcut.py     # グローバルホットキー管理(RegisterHotKey)
 │   │   ├── paste.py            # 文字起こしの結果を貼り付ける
 │   │   ├── undo_input.py       # 直前の入力を取り消す
@@ -112,6 +117,7 @@ WhisperKey/
 
 - **音声認識**: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) / [CTranslate2](https://github.com/OpenNMT/CTranslate2)
 - **モデル**: OpenAI Whisper (tiny / base / small / medium / large-v3 / large-v3-turbo)、[kotoba-whisper-v2.0](https://huggingface.co/kotoba-tech/kotoba-whisper-v2.0)(日本語専用)
+- **入力補正(GPU版)**: [llama.cpp](https://github.com/ggml-org/llama.cpp) の llama-server / [gemma-4-E4B-it](https://huggingface.co/google/gemma-4-E4B-it)(Google、GGUF 形式の Q4_K_M)
 - **オーディオ入力**: PyAudio
 - **GUI**: pywebview(本体のウィンドウ。画面は HTML / CSS / JS) / Tkinter(インジケーター)
 - **ショートカットキー**: Windows の RegisterHotKey
@@ -137,3 +143,5 @@ BOOTHで販売される実行ファイル版には、商用ソフトウェアと
 本ソフトウェアは多数のオープンソースライブラリを利用しています。詳細は同梱の `THIRD_PARTY_LICENSES.txt` をご参照ください。
 
 GPU版は NVIDIA CUDA および cuDNN のランタイムライブラリを同梱しています。GPU版の使用者は NVIDIA のライセンス条項にも同意する必要があります。
+
+GPU版は入力補正のために llama.cpp の llama-server(MIT License)を同梱しています。入力補正のモデル(gemma-4-E4B-it、Apache License 2.0)は同梱せず、使うときにダウンロードします。
