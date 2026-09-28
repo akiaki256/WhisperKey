@@ -362,6 +362,15 @@ h2 {
   margin-top: 20px;
 }
 
+/* 入力補正の「よく使う言葉」: よみがなが空(LLM に渡さない)なら枠を赤く */
+.pair-card input.missing {
+  border-color: #c42b1c;   /* Windows の「重大」の赤 */
+}
+
+#btn-import-vocab {
+  margin-bottom: 8px;
+}
+
 /* 文字だけの控えめなボタン(「+ 変換前を追加」) */
 button.subtle {
   align-self: flex-start;

@@ -87,15 +87,6 @@ INDICATOR_MODE_CHOICES = [
 ]
 INDICATOR_MODE_DEFAULT = "dot"
 
-# 入力履歴の件数
-HISTORY_LIMIT_CHOICES = [
-    (5, "5 件"),
-    (10, "10 件"),
-    (20, "20 件"),
-    (30, "30 件"),
-]
-HISTORY_LIMIT_DEFAULT = 10
-
 # 音声実行(command_dict.csv)の種類
 COMMAND_TYPES = [
     ("url", "URLを開く"),
@@ -141,9 +132,8 @@ def defaults():
         "indicator_x": 5,
         "indicator_y": 20,
         "theme": THEME_DEFAULT,
-        # 入力履歴(history.json)。オフでも今ある履歴には触らない
+        # 入力履歴(history.json)。オフでも今ある履歴には触らない。件数は history.LIMIT で決まっている
         "history_enabled": True,
-        "history_limit": HISTORY_LIMIT_DEFAULT,
         # 入力補正(GPU版のみ)。音声認識の結果をローカル LLM で直す。直前の入力を入力履歴から取るので、履歴のオンが要る
         "llm_correction": False,
     }
@@ -237,7 +227,6 @@ def normalize(raw):
         "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
         "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
-        "history_limit": _fix_choice(merged["history_limit"], HISTORY_LIMIT_CHOICES, d["history_limit"]),
         "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),
     }
 

@@ -10,7 +10,8 @@ LLM は llama.cpp の llama-server を裏で動かして、HTTP で呼ぶ。
 - correct(text): 直した文を返す。直せなかったとき(オフ、準備中、時間切れ、エラー、おかしな返事)は元の文を返す
     動いていた llama-server が落ちていたら、元の文を返しつつ裏で立ち上げ直す
     起動に失敗したとき(VRAM が足りない など)は、オン・オフを切り替えるまで立ち上げ直さない
-- status(): "off" / "starting" / "ready" / "error"(画面で知らせるため)
+- status(): {"state": "off" / "starting" / "ready" / "error", "message": 失敗の理由(error のとき)}
+- add_listener(fn): 状態が変わったら fn(status()) を呼んでもらう(入力補正タブで知らせるため)
 
 llama-server は Windows のジョブに入れて、WhisperKey が終わる(落ちる)と一緒に終わるようにする。
 それでも残っていたとき(前の回の分)のために、立ち上げる前に同じ場所の llama-server を片付ける。
@@ -73,10 +74,32 @@ _lock = threading.Lock()
 _proc = None
 _job = None
 _state = "off"
+_message = None
+_listeners = []
+
+# 起動に失敗したときの知らせ(入力補正タブに出る)
+MISSING_MESSAGE = "入力補正のモデルか llama-server が見つかりません。モデルをダウンロードしてから、入力補正をオンにし直してください"
+LAUNCH_FAILED_MESSAGE = "入力補正を起動できませんでした({})。入力補正はせずに音声入力を続けます"
+NOT_READY_MESSAGE = ("入力補正を起動できませんでした。VRAM が足りない可能性があります。"
+                     "ほかのアプリを閉じてから、入力補正をオンにし直してください(補正はせずに音声入力を続けます)")
 
 
 def status():
-    return _state
+    return {"state": _state, "message": _message}
+
+
+def add_listener(fn):
+    _listeners.append(fn)
+
+
+def _set_state(state, message=None):
+    global _state, _message
+    _state, _message = state, message
+    for fn in _listeners:
+        try:
+            fn(status())
+        except Exception as e:
+            print(f"入力補正の状態の通知でエラー: {e}")
 
 
 def _enabled():
@@ -158,11 +181,10 @@ def _wait_until_ready(proc):
 
 
 def _start_worker():
-    global _state
     gguf = _model_path()
     if gguf is None or not os.path.exists(LLAMA_SERVER_EXE):
         print("入力補正: モデルか llama-server が見つからないので、補正せずに動きます")
-        _state = "error"
+        _set_state("error", MISSING_MESSAGE)
         return
     print("入力補正: llama-server を起動中...")
     try:
@@ -171,20 +193,20 @@ def _start_worker():
             proc = _proc
     except Exception as e:
         print(f"入力補正: llama-server を起動できませんでした: {e}")
-        _state = "error"
+        _set_state("error", LAUNCH_FAILED_MESSAGE.format(e))
         return
 
     if not _wait_until_ready(proc):
         if proc is _proc:   # 準備中にオフにされたのでなければ
             print("入力補正: llama-server の準備ができませんでした(補正せずに動きます)")
-            stop(state="error")
+            stop(state="error", message=NOT_READY_MESSAGE)
         return
     try:
         _chat("暖機です", [], time.monotonic() + STARTUP_TIMEOUT_SECONDS)
     except Exception as e:
         print(f"入力補正: 暖機に失敗(続行します): {e}")
     if proc is _proc:   # 準備中にオフにされていなければ
-        _state = "ready"
+        _set_state("ready")
         print("入力補正: 準備完了")
 
 
@@ -196,15 +218,16 @@ def start():
     with _lock:
         if _state in ("starting", "ready"):
             return
-        _state = "starting"
+        _state = "starting"   # ロックの中で先に決める(二つ同時に立ち上げないように)
+    _set_state("starting")
     threading.Thread(target=_start_worker, name="llm-start", daemon=True).start()
 
 
-def stop(state="off"):
-    global _proc, _state
+def stop(state="off", message=None):
+    global _proc
     with _lock:
         proc, _proc = _proc, None
-        _state = state
+    _set_state(state, message)
     if proc and proc.poll() is None:
         proc.terminate()
         try:

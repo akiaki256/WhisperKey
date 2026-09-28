@@ -2,9 +2,10 @@
 入力履歴(history.json)
 
 - 残すのは、実際に入力(貼り付け)した文章だけ。音声実行は残さない
-- 残すかどうか(history_enabled)と件数(history_limit)は config が持つ
+- 残すかどうか(history_enabled)は config が持つ
   スイッチがオフのあいだは新しい入力を足さないだけで、今ある履歴には触らない
-- 新しいものが先頭。件数を超えた古いものは消える
+- 新しいものが先頭。LIMIT 件を超えた古いものは消える
+  (件数は選べない。入力補正が直前の入力を履歴から取るので、決まった数にしておく)
 - add_listener(fn): 履歴が変わったら fn(今の履歴) を呼んでもらう(画面の一覧を更新するため)
 
 中身: [{"time": "2026-09-27T21:30:05", "text": "入力した文章"}, ...]
@@ -19,6 +20,8 @@ from datetime import datetime
 import config
 from paths import HISTORY_JSON
 
+LIMIT = 20
+
 _entries = []
 _lock = threading.Lock()
 _listeners = []
@@ -30,7 +33,8 @@ def load():
     try:
         with open(HISTORY_JSON, encoding="utf-8") as f:
             data = json.load(f)
-        _entries = [e for e in data if isinstance(e, dict) and isinstance(e.get("text"), str)]
+        # 件数を選べたころ(30 件まで)の履歴も、LIMIT 件にそろえる(ファイルは次に足したときに書き直される)
+        _entries = [e for e in data if isinstance(e, dict) and isinstance(e.get("text"), str)][:LIMIT]
     except FileNotFoundError:
         _entries = []
     except Exception as e:
@@ -73,25 +77,12 @@ def add(text, raw=None):
     if raw is not None and raw != text:
         entry["raw"] = raw
     with _lock:
-        _entries = [entry] + _entries[:config.get("history_limit") - 1]
+        _entries = [entry] + _entries[:LIMIT - 1]
         try:
             _save()
         except OSError as e:
             print(f"入力履歴の保存に失敗: {e}")
     _notify()
-
-
-def trim(limit):
-    """件数を limit に減らす(件数の設定を下げたとき)。消した件数を返す"""
-    global _entries
-    with _lock:
-        removed = len(_entries) - limit
-        if removed <= 0:
-            return 0
-        _entries = _entries[:limit]
-        _save()
-    _notify()
-    return removed
 
 
 def clear():

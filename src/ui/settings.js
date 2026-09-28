@@ -203,6 +203,10 @@ function onSettingsChanged(changed) {
   if ("push_to_talk" in changed) {
     showPushToTalk(changed.push_to_talk);
   }
+  // 入力履歴をオフにしたら、入力補正もオフになる(main_window.py の update_setting)
+  if ("llm_correction" in changed) {
+    showCorrectionToggle(changed.llm_correction);
+  }
 }
 
 // プッシュトゥトークのスイッチと、ショートカットタブの「音声入力」の説明をそろえる

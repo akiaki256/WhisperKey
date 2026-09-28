@@ -19,6 +19,8 @@
       <button data-tab="history"><span class="icon">&#xE81C;</span>入力履歴</button>
       <button data-tab="dict"><span class="icon">&#xE82D;</span>音声辞書</button>
       <button data-tab="command"><span class="icon">&#xE768;</span>音声実行</button>
+      <!-- GPU版だけ(CPU版では correction.js が隠す) -->
+      <button data-tab="correction" class="gpu-only"><span class="icon">&#xE70F;</span>入力補正</button>
       <button data-tab="model"><span class="icon">&#xE950;</span>モデル</button>
       <button data-tab="shortcuts"><span class="icon">&#xE765;</span>ショートカット</button>
       <button data-tab="settings"><span class="icon">&#xE713;</span>設定</button>
@@ -112,26 +114,12 @@
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="history-enabled">入力履歴を残す</label>
-            <div class="card-desc">オンの間、入力した文章を残します。履歴はローカルファイルへ保存されます</div>
+            <div class="card-desc">オンの間、入力した文章を新しいものから 20 件まで残します。履歴はローカルファイルへ保存されます</div>
           </div>
           <div class="card-control">
             <span id="history-enabled-label" class="toggle-label"></span>
             <input type="checkbox" id="history-enabled" class="toggle">
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="history-limit">残す件数</label>
-            <div class="card-desc">超えた分は、古いものから消えます</div>
-          </div>
-          <div class="card-control"><select id="history-limit"></select></div>
-        </div>
-        <div id="history-limit-confirm" class="infobar warning" hidden>
-          <span class="icon">&#xE7BA;</span>
-          <span class="infobar-text"></span>
-          <button class="accent confirm-ok">消す</button>
-          <button class="confirm-cancel">やめる</button>
         </div>
 
         <div class="card">
@@ -172,6 +160,44 @@
         </div>
         <!-- command.js がコマンドの数だけカードを作る -->
         <div id="command-list"></div>
+      </section>
+
+      <!-- 入力補正(GPU版だけ)。音声認識の結果をローカル LLM で直してから入力する。動きは correction.js -->
+      <section id="tab-correction">
+        <h1>入力補正</h1>
+        <p id="correction-error" class="infobar error" hidden></p>
+        <!-- 準備中・準備完了を知らせる(correction.js) -->
+        <p id="correction-notice" class="infobar" hidden></p>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-correction">入力補正</label>
+            <div class="card-desc">音声認識の聞き間違いを、ローカルの LLM で直してから入力します。直前の入力を入力履歴から読むので、先に入力履歴をオンにしてください</div>
+          </div>
+          <div class="card-control">
+            <span id="llm-correction-label" class="toggle-label"></span>
+            <input type="checkbox" id="llm-correction" class="toggle">
+          </div>
+        </div>
+
+        <!-- LLM のモデル。右側(ダウンロード・削除)の動きはモデルタブと同じ(model_tab.js の showModelState) -->
+        <div class="card" id="llm-model-card">
+          <div class="card-text">
+            <div class="card-title"></div>
+            <div class="card-desc">入力補正に使うモデルです。ダウンロードすると、入力補正をオンにできます</div>
+          </div>
+          <div class="card-control model-status"></div>
+        </div>
+
+        <h2>よく使う言葉を追加学習</h2>
+        <div class="section-head">
+          <p class="section-desc">ここに登録した単語はLLMが補正を行う際の判断材料として使用されます。よみがなが空の言葉は使われません</p>
+          <button id="btn-add-vocab" class="accent"><span class="icon">&#xE710;</span> 追加</button>
+        </div>
+        <p id="vocab-notice" class="infobar" hidden></p>
+        <button id="btn-import-vocab" class="subtle"><span class="icon">&#xE896;</span> 音声辞書の変換後をまとめて登録</button>
+        <!-- correction.js が言葉の数だけカードを作る -->
+        <div id="vocab-list"></div>
       </section>
 
       <!-- 声をどう聞き取って言葉にするか(言語・モデル)。保存のしくみは設定タブと同じ(settings.js) -->
@@ -333,5 +359,6 @@
   <script src="dict.js"></script>
   <script src="command.js"></script>
   <script src="history.js"></script>
+  <script src="correction.js"></script>
 </body>
 </html>

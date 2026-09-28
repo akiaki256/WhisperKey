@@ -96,6 +96,7 @@ import tray_icon
 import main_window
 import history
 import llm_correct
+import llm_vocab
 import undo_input
 import sounds
 
@@ -109,6 +110,7 @@ cleanup_temp()  # 残っていたtemp_ファイルを消去
 
 settings = load_config()  # config.jsonを読み込む
 history.load()  # 入力履歴(history.json)を読み込む
+llm_vocab.load()  # 入力補正の「よく使う言葉」(llm_vocab.csv)を読み込む
 
 ## faster-Whisperのモデル読み込み
 ## 選ばれているモデルが手元に無ければ読み込まずに起動する(窓がモデルタブを開いて、ダウンロードしてもらう)

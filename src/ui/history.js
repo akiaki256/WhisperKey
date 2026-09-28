@@ -1,15 +1,13 @@
 // 入力履歴タブ
-// - スイッチ: オンの間だけ新しい入力を残す。オフにしても、今ある履歴には触らない
-// - 残す件数: 減らしてあふれる分があるときは、確認の帯を出してから消す
+// - スイッチ: オンの間だけ新しい入力を残す(20 件まで)。オフにしても、今ある履歴には触らない
+//   オフにすると入力補正もオフになる(Python が決めて、onSettingsChanged で届く)
 // - 消去: 確認の帯を出してから、全部消す
 // - 一覧: 新しい入力が来たら Python から onHistoryChanged で知らせが届く
 
 const historyList = document.getElementById("history-list");
 const historyToggle = document.getElementById("history-enabled");
-const historyLimitSelect = document.getElementById("history-limit");
 const clearHistoryButton = document.getElementById("btn-clear-history");
 let historyEntries = [];
-let historyLimit = 10;   // 今保存されている件数(確認で「やめる」を押したら、ここに戻す)
 
 // 確認の帯を出して、「消す」なら true、「やめる」なら false を返す
 function askConfirm(bar, message) {
@@ -86,24 +84,6 @@ historyToggle.addEventListener("change", async () => {
   if (value !== null) showHistoryToggle(value);
 });
 
-historyLimitSelect.addEventListener("change", async () => {
-  const newLimit = Number(historyLimitSelect.value);
-  const overflow = historyEntries.length - newLimit;
-  if (overflow > 0) {
-    const ok = await askConfirm(
-      document.getElementById("history-limit-confirm"),
-      `古い履歴 ${overflow} 件が消えます`,
-    );
-    if (!ok) {
-      historyLimitSelect.value = historyLimit;
-      return;
-    }
-  }
-  const value = await saveSetting("history_limit", newLimit);   // あふれた分は Python が消して、一覧も届く
-  if (value !== null) historyLimit = value;
-  historyLimitSelect.value = historyLimit;
-});
-
 clearHistoryButton.addEventListener("click", async () => {
   const ok = await askConfirm(
     document.getElementById("history-clear-confirm"),
@@ -167,8 +147,6 @@ document.querySelector("main").addEventListener("scroll", () => { dictFlyout.hid
 async function loadHistory() {
   const s = await window.pywebview.api.get_settings();
   showHistoryToggle(s.values.history_enabled);
-  historyLimit = s.values.history_limit;
-  fillSelect(historyLimitSelect, s.history_limits, historyLimit);
   renderHistory(await window.pywebview.api.get_history());
 }
 

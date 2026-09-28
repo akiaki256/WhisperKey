@@ -55,6 +55,8 @@ COMMAND_DICT_CSV = os.path.join(APP_DIR, "command_dict.csv")
 MODELS_DIR = os.path.join(APP_DIR, "models")
 TEMP_DIR = os.path.join(APP_DIR, "temp")
 HISTORY_JSON = os.path.join(APP_DIR, "history.json")
+LLM_VOCAB_CSV = os.path.join(APP_DIR, "llm_vocab.csv")                      # 入力補正の「よく使う言葉」
+LLM_VOCAB_IMPORTED_JSON = os.path.join(APP_DIR, "llm_vocab_imported.json")  # 辞書から取り込んだ変換後の覚え書き
 
 # 配布フォルダ内の実行ファイル(exe化後のみ使用)
 RESTART_BAT = os.path.join(APP_DIR, "restart.bat")
