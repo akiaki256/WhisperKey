@@ -15,6 +15,10 @@
   インストール先の assets を見る(ビルドとインストーラーが assets をインストール先にも置いている)
     exe化後: exeと同じフォルダ/assets/sounds
     開発中: プロジェクト直下の assets/sounds
+- CUDA_DIRS: GPU版が使う NVIDIA の DLL(cuBLAS・cuDNN)の置き場所。exe に入れると起動のたびに
+  一時フォルダへ展開されて遅く、LLM 補正の llama-server とも共有できないので、exe の外に置く
+    exe化後: exeと同じフォルダ/cuda
+    開発中: 仮想環境の nvidia パッケージ(cublas/bin・cudnn/bin)
 """
 
 import os
@@ -30,11 +34,14 @@ if FROZEN:
     ASSETS_DIR = os.path.join(sys._MEIPASS, "assets")
     UI_DIR = os.path.join(sys._MEIPASS, "ui")
     SOUNDS_DIR = os.path.join(APP_DIR, "assets", "sounds")
+    CUDA_DIRS = [os.path.join(APP_DIR, "cuda")]
 else:
     APP_DIR = os.path.join(PROJECT_ROOT, "_local", "dev_data")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
     UI_DIR = os.path.join(PROJECT_ROOT, "src", "ui")
     SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
+    _nvidia = os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")
+    CUDA_DIRS = [os.path.join(_nvidia, "cublas", "bin"), os.path.join(_nvidia, "cudnn", "bin")]
 
 # ユーザーデータ
 CONFIG_JSON = os.path.join(APP_DIR, "config.json")

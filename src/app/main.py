@@ -47,23 +47,14 @@ except ImportError:
 
 # ========================================================
 # CUDA DLL パス設定(GPU版)
-# 開発時: 仮想環境のsite-packages内のnvidiaパッケージを参照
-# exe化後: sys._MEIPASS配下に展開されたDLLを参照
+# 置き場所は paths.CUDA_DIRS(exe化後: exeの横の cuda、開発中: 仮想環境の nvidia パッケージ)
+# ctranslate2 を初めて読み込む(cuda_check)より前に足さないと効かない
 # ========================================================
 from edition import EDITION
+from paths import CUDA_DIRS
 
 if EDITION == "gpu":
-    if getattr(sys, "frozen", False):
-        # exe化後: PyInstallerが展開した一時ディレクトリ
-        base_path = sys._MEIPASS
-    else:
-        # 開発中: 仮想環境のsite-packages
-        base_path = os.path.join(os.path.dirname(sys.executable), "..", "Lib", "site-packages")
-    
-    cuda_bin = os.path.abspath(os.path.join(base_path, "nvidia", "cublas", "bin"))
-    cudnn_bin = os.path.abspath(os.path.join(base_path, "nvidia", "cudnn", "bin"))
-    
-    for p in [cuda_bin, cudnn_bin]:
+    for p in CUDA_DIRS:
         if os.path.exists(p):
             os.environ["PATH"] = p + os.pathsep + os.environ["PATH"]
             # Python 3.8+ 推奨: DLL検索パスを明示的に追加
