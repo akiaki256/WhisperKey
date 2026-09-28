@@ -1,5 +1,6 @@
 // 入力補正タブ(GPU版だけ。CPU版ではタブごと隠す)
 // - スイッチ: オンにできるのは、入力履歴がオンで、モデルがあるとき(だめなら Python がエラーを返す)
+// - 待つ時間の上限: 1〜20 秒(0.5 秒刻み)。過ぎたら補正せずに入力する。次の入力から効く
 // - モデルのカード: ダウンロード・削除の動きはモデルタブと同じ(model_tab.js の showModelState)
 // - 準備中・準備完了・失敗は、Python から onCorrectionStatus で届く
 // - よく使う言葉: 一つのカード = 言葉とよみがな。入力欄から離れたとき・消したときに、まるごと保存する(すぐ効く)
@@ -157,6 +158,17 @@ async function loadCorrection() {
     return;
   }
   showCorrectionToggle(s.values.llm_correction);
+
+  // 待つ時間の上限(スライダーと数字。保存のしくみは settings.js の bindSlider)
+  const timeoutRange = document.getElementById("llm-timeout-range");
+  timeoutRange.min = s.llm_timeout.min;
+  timeoutRange.max = s.llm_timeout.max;
+  timeoutRange.step = s.llm_timeout.step;
+  const showTimeout = bindSlider(
+    "llm_timeout", timeoutRange, document.getElementById("llm-timeout-number"),
+    (v) => Number(v).toFixed(1),
+  );
+  showTimeout(s.values.llm_timeout);
 
   const card = document.getElementById("llm-model-card");
   card.dataset.model = s.llm_model.value;

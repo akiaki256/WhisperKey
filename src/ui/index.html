@@ -180,6 +180,17 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-timeout-range">待つ時間の上限</label>
+            <div class="card-desc">この時間を過ぎても補正が終わらなければ、補正せずに入力します</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="llm-timeout-range">
+            <input type="number" id="llm-timeout-number"><span class="unit">秒</span>
+          </div>
+        </div>
+
         <!-- LLM のモデル。右側(ダウンロード・削除)の動きはモデルタブと同じ(model_tab.js の showModelState) -->
         <div class="card" id="llm-model-card">
           <div class="card-text">

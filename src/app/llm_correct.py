@@ -41,7 +41,7 @@ from paths import CUDA_DIRS, LLAMA_SERVER_EXE, TEMP_DIR
 PORT = 39281
 BASE_URL = f"http://127.0.0.1:{PORT}"   # localhost だと Windows で毎回 2 秒待たされる
 
-TIMEOUT_SECONDS = 3.0        # テキストを受け取ってから。返らなければあきらめて元の文を入力する
+# 時間切れは config の llm_timeout(入力補正タブで 1〜20 秒、初期値 3 秒)。テキストを受け取ってから数える
 STARTUP_TIMEOUT_SECONDS = 180  # 初めての起動は、GPU 向けの処理の準備で 60 秒以上かかることがある
 CONTEXT_SECONDS = 60         # 直前の入力として渡すのは、この秒数以内の
 CONTEXT_MAX = 5              # この件数まで
@@ -330,7 +330,7 @@ def correct(text, vocabulary=()):
     now = datetime.now()
     try:
         answer, truncated = _chat(_user_message(text, _context(now), now), vocabulary,
-                                  received + TIMEOUT_SECONDS)
+                                  received + config.get("llm_timeout"))
     except (TimeoutError, OSError) as e:
         # 時間切れは socket.timeout(OSError の仲間)
         if _proc is None or _proc.poll() is not None:

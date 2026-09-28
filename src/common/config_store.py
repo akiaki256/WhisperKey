@@ -32,6 +32,11 @@ SILENCE_DURATION_MIN = 0.3
 SILENCE_DURATION_MAX = 5.0
 SILENCE_DURATION_STEP = 0.1
 
+# 入力補正の時間切れ(秒)。LLM がテキストを受け取ってから、これを過ぎたら補正をあきらめて元の文を入力する
+LLM_TIMEOUT_MIN = 1.0
+LLM_TIMEOUT_MAX = 20.0
+LLM_TIMEOUT_STEP = 0.5
+
 # サンプルレート(MME固定)
 SAMPLE_RATE = 16000
 
@@ -136,6 +141,7 @@ def defaults():
         "history_enabled": True,
         # 入力補正(GPU版のみ)。音声認識の結果をローカル LLM で直す。直前の入力を入力履歴から取るので、履歴のオンが要る
         "llm_correction": False,
+        "llm_timeout": 3.0,
     }
 
 
@@ -171,6 +177,14 @@ def _fix_silence(v, default):
 def _fix_choice(v, choices, default):
     valid = [choice[0] for choice in choices]  # 先頭が保存値(モデルは説明つきの3つ組なので)
     return v if v in valid else default
+
+
+def _fix_llm_timeout(v, default):
+    # 範囲の端に寄せて、刻み(0.5 秒)にそろえる
+    if not _is_number(v):
+        return default
+    v = max(LLM_TIMEOUT_MIN, min(LLM_TIMEOUT_MAX, float(v)))
+    return round(v / LLM_TIMEOUT_STEP) * LLM_TIMEOUT_STEP
 
 
 def _fix_device_index(v):
@@ -228,6 +242,7 @@ def normalize(raw):
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
         "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
         "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),
+        "llm_timeout": _fix_llm_timeout(merged["llm_timeout"], d["llm_timeout"]),
     }
 
 

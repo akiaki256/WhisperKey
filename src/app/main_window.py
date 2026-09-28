@@ -51,7 +51,7 @@ EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
     "history_enabled", "push_to_talk", "indicator_mode",
     "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
-    "llm_correction",
+    "llm_correction", "llm_timeout",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
@@ -207,6 +207,11 @@ class Api:
             # 入力補正タブ(GPU版だけ見せる)
             "edition": EDITION,
             "llm_model": _llm_model() if EDITION == "gpu" else None,
+            "llm_timeout": {
+                "min": config_store.LLM_TIMEOUT_MIN,
+                "max": config_store.LLM_TIMEOUT_MAX,
+                "step": config_store.LLM_TIMEOUT_STEP,
+            },
             "correction_status": llm_correct.status(),
             "restart_needed": _restart_needed(values),
         }
