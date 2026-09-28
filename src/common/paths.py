@@ -19,6 +19,9 @@
   一時フォルダへ展開されて遅く、LLM 補正の llama-server とも共有できないので、exe の外に置く
     exe化後: exeと同じフォルダ/cuda
     開発中: 仮想環境の nvidia パッケージ(cublas/bin・cudnn/bin)
+- LLAMA_SERVER_EXE: 入力補正(GPU版)で裏で動かす llama.cpp の llama-server
+    exe化後: exeと同じフォルダ/llama-server/llama-server.exe
+    開発中: _local/vendor/llama-server/<版>/llama-server.exe(版は build.bat の LLAMA_VER と合わせる)
 """
 
 import os
@@ -35,6 +38,7 @@ if FROZEN:
     UI_DIR = os.path.join(sys._MEIPASS, "ui")
     SOUNDS_DIR = os.path.join(APP_DIR, "assets", "sounds")
     CUDA_DIRS = [os.path.join(APP_DIR, "cuda")]
+    LLAMA_SERVER_EXE = os.path.join(APP_DIR, "llama-server", "llama-server.exe")
 else:
     APP_DIR = os.path.join(PROJECT_ROOT, "_local", "dev_data")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
@@ -42,6 +46,7 @@ else:
     SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
     _nvidia = os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")
     CUDA_DIRS = [os.path.join(_nvidia, "cublas", "bin"), os.path.join(_nvidia, "cudnn", "bin")]
+    LLAMA_SERVER_EXE = os.path.join(PROJECT_ROOT, "_local", "vendor", "llama-server", "b11216", "llama-server.exe")
 
 # ユーザーデータ
 CONFIG_JSON = os.path.join(APP_DIR, "config.json")

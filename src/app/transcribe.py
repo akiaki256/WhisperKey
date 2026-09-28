@@ -3,6 +3,7 @@ import config
 import convert_dict
 import command
 import history
+import llm_correct
 import undo_input
 import model
 import paste
@@ -93,10 +94,13 @@ def whisper_function(wav_queue):
                 undo_input.forget()  # 直前がコマンドなので、その前の入力は取り消させない
 
             elif result:  # 空文字でない場合のみ貼り付け
-                paste.paste(result)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
-                print(f"入力: {result[:30]}...") # 最初の30文字を表示
-                undo_input.remember(result)  # 取り消しのキーで消せるように
-                history.add(result)  # 入力した文章だけを残す(音声実行は残さない)
+                # 入力補正(GPU版、オンのとき)。音声実行の判定は直す前の文で済ませてある
+                # (LLM が合言葉を言い換えて、実行されなくなるのを防ぐ)
+                fixed = llm_correct.correct(result)
+                paste.paste(fixed)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
+                print(f"入力: {fixed[:30]}...") # 最初の30文字を表示
+                undo_input.remember(fixed)  # 取り消しのキーで消せるように
+                history.add(fixed, raw=result)  # 入力した文章だけを残す(音声実行は残さない)
 
             # 処理済みファイルを削除
             os.remove(filepath)

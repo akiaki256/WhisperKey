@@ -95,6 +95,7 @@ from gui_indicator import IndicatorWindow
 import tray_icon
 import main_window
 import history
+import llm_correct
 import undo_input
 import sounds
 
@@ -121,6 +122,9 @@ else:
     except model.ModelLoadError as e:
         startup.close()
         model.exit_with_load_error(e)
+
+## 入力補正(GPU版、オンのとき)の llama-server を裏で立ち上げる。待たずに次へ進み、準備ができるまでは補正せずに入力する
+llm_correct.start()
 
 ## ショートカットキーの登録(音声入力・入力モード切り替え・直前の入力を取り消す)
 ## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)

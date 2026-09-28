@@ -144,6 +144,8 @@ def defaults():
         # 入力履歴(history.json)。オフでも今ある履歴には触らない
         "history_enabled": True,
         "history_limit": HISTORY_LIMIT_DEFAULT,
+        # 入力補正(GPU版のみ)。音声認識の結果をローカル LLM で直す。直前の入力を入力履歴から取るので、履歴のオンが要る
+        "llm_correction": False,
     }
 
 
@@ -236,6 +238,7 @@ def normalize(raw):
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
         "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
         "history_limit": _fix_choice(merged["history_limit"], HISTORY_LIMIT_CHOICES, d["history_limit"]),
+        "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),
     }
 
 

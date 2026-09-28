@@ -8,6 +8,7 @@
 - add_listener(fn): 履歴が変わったら fn(今の履歴) を呼んでもらう(画面の一覧を更新するため)
 
 中身: [{"time": "2026-09-27T21:30:05", "text": "入力した文章"}, ...]
+    入力補正で直したときは、直す前の文も "raw" に残す(画面には出さない。LLM が変に直したときに見比べるため)
 """
 
 import json
@@ -62,12 +63,15 @@ def _notify():
             print(f"入力履歴の通知でエラー: {e}")
 
 
-def add(text):
-    """入力した文章を先頭に足す。スイッチがオフなら何もしない"""
+def add(text, raw=None):
+    """入力した文章を先頭に足す。スイッチがオフなら何もしない
+    raw: 入力補正で直す前の文(直していなければ None)"""
     global _entries
     if not config.get("history_enabled"):
         return
     entry = {"time": datetime.now().isoformat(timespec="seconds"), "text": text}
+    if raw is not None and raw != text:
+        entry["raw"] = raw
     with _lock:
         _entries = [entry] + _entries[:config.get("history_limit") - 1]
         try:
