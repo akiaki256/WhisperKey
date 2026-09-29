@@ -1,3 +1,5 @@
+import collections
+import math
 import os
 import sys
 import time
@@ -31,6 +33,10 @@ CHANNELS = 1
 
 # 選んだマイクが抜かれていないか・戻ってきたかを見る間隔(CHUNK の数)。1 CHUNK は 1024 / 16000 = 0.064 秒なので約2秒
 MIC_CHECK_CHUNKS = 31
+
+# プレロール: 録音が始まる前の音を、この秒数ぶん取っておき、録音の頭にくっつける
+# 録音は音量がしきい値を超えたかたまりから始まるので、それより前の小さな音(話し始めの子音など)が切れるのを防ぐ
+PRE_ROLL_SECONDS = 0.3
 
 # tempフォルダがなければ作成
 if not os.path.exists(temp_dir):
@@ -163,6 +169,10 @@ def recording_function(wav_queue):
     frames = []
     state = "waiting"
 
+    # 待っている間の、直近 PRE_ROLL_SECONDS ぶんの音(録音が始まったら頭にくっつける)
+    # 一つの録音を文字起こしに回したら空にする(前の録音の終わりが、次の録音の頭に二重に入らないように)
+    pre_roll = collections.deque(maxlen=max(1, math.ceil(PRE_ROLL_SECONDS * RATE / CHUNK)))
+
     reopen = False
 
     while True:
@@ -183,6 +193,7 @@ def recording_function(wav_queue):
                 state = "waiting"
                 silence_duration = 0
                 frames = []
+            pre_roll.clear()   # 前のマイクの音を、次のマイクの録音に混ぜない
             close_mic(p, stream)
             p, stream, current_mic, requested_mic = open_selected_mic()
             reopen = False
@@ -208,7 +219,10 @@ def recording_function(wav_queue):
             if listening and volume > threshold:
                 print("録音開始！")
                 state = "recording"
-                frames = [data]
+                frames = list(pre_roll) + [data]   # しきい値を超える前の音も入れる(プレロール)
+                pre_roll.clear()
+            else:
+                pre_roll.append(data)
 
         elif state == "recording":
             if not listening:
@@ -217,6 +231,7 @@ def recording_function(wav_queue):
                 state = "waiting"
                 silence_duration = 0
                 frames = []
+                pre_roll.clear()
                 continue
 
             frames.append(data)
@@ -229,6 +244,7 @@ def recording_function(wav_queue):
                     state = "waiting"
                     silence_duration = 0
                     frames = []
+                    pre_roll.clear()
 
             else:
                 silence_duration = 0
