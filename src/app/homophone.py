@@ -269,9 +269,24 @@ def _ask_once(base_url, before, after, options, context_lines, vocab_lines, dead
     return {options[LETTERS.index(L)]: v / total for L, v in p.items()}
 
 
-def _check_slots(base_url, text, slot_list, context_lines, vocab_lines, deadline):
+def _log_slot(label, orig, p, replaced):
+    """一か所ぶんの結果をコンソールに出す(しきい値を考えるための材料。差し替えなかった場所も出す)
+    例: 同音異義語の確かめ(辞書): 分 → 文 74% / 分 26% … そのまま(80% に届かず)"""
+    ranked = sorted(p.items(), key=lambda x: x[1], reverse=True)
+    top = " / ".join(f"{w} {v:.0%}" for w, v in ranked[:3])
+    best = ranked[0][0]
+    if replaced:
+        result = "差し替え"
+    elif best == orig:
+        result = "そのまま"
+    else:
+        result = f"そのまま({THRESHOLD:.0%} に届かず)"
+    print(f"同音異義語の確かめ({label}): {orig} → {top} … {result}")
+
+
+def _check_slots(base_url, text, slot_list, context_lines, vocab_lines, deadline, label):
     """左から一か所ずつ聞いて、(差し替えた文, 最後まで確かめたか) を返す。slot_list の位置は元の文での位置(重ならないこと)
-    時間切れ・エラーのときは、そこまでに差し替えた文を返す"""
+    時間切れ・エラーのときは、そこまでに差し替えた文を返す。label はログに出す候補の出どころ(辞書 / Whisper)"""
     shift = 0
     for start, orig, alts in sorted(slot_list):
         s = start + shift
@@ -288,8 +303,9 @@ def _check_slots(base_url, text, slot_list, context_lines, vocab_lines, deadline
             return text, False
         p = {w: (p1[w] + p2[w]) / 2 for w in words}
         best = max(p, key=p.get)
-        if best != orig and p[best] >= THRESHOLD:
-            print(f"同音異義語の確かめ: {orig} → {best}({p[best]:.0%})")
+        replaced = best != orig and p[best] >= THRESHOLD
+        _log_slot(label, orig, p, replaced)
+        if replaced:
             text = before + best + after
             shift += len(best) - len(orig)
     return text, True
@@ -304,11 +320,18 @@ def check(base_url, text, raw, nbest, context_lines, vocabulary, deadline):
         return text
     vocab_lines = [f"{r} → {w}" for r, w in vocabulary]
     vocab_words = [w for _, w in vocabulary]
+    started = time.monotonic()
+    n_dict = n_whisper = 0
     try:
-        text, finished = _check_slots(base_url, text, dictionary_slots(text), context_lines, vocab_lines, deadline)
+        slots = dictionary_slots(text)
+        n_dict = len(slots)
+        text, finished = _check_slots(base_url, text, slots, context_lines, vocab_lines, deadline, "辞書")
         if finished and nbest:
             protect = protected_spans(raw, text, vocab_words)
-            text, _ = _check_slots(base_url, text, whisper_slots(text, nbest, protect), context_lines, vocab_lines, deadline)
+            slots = whisper_slots(text, nbest, protect)
+            n_whisper = len(slots)
+            text, _ = _check_slots(base_url, text, slots, context_lines, vocab_lines, deadline, "Whisper")
     except Exception as e:   # 候補を出すところ(MeCab など)の思わぬエラーでも、入力は止めない
         print(f"同音異義語の確かめ: エラー(そこまでの文で入力): {e}")
+    print(f"同音異義語の確かめ: 辞書 {n_dict} か所・Whisper {n_whisper} か所を {time.monotonic() - started:.2f} 秒で確かめた")
     return text

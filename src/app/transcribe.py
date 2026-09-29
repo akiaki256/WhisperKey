@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+
 import config
 import convert_dict
 import command
@@ -49,7 +51,9 @@ def whisper_nbest(filepath):
         result = whisper.model.generate(whisper.encode(segment), [prompt], beam_size=NBEST_BEAM,
                                         num_hypotheses=NBEST_BEAM, max_length=224,
                                         suppress_blank=True, suppress_tokens=[-1])[0]
-        return [tokenizer.decode([t for t in ids if t < tokenizer.eot]).strip() for ids in result.sequences_ids]
+        hyps = [tokenizer.decode([t for t in ids if t < tokenizer.eot]).strip() for ids in result.sequences_ids]
+        print(f"Whisper の書き分け: {' / '.join(dict.fromkeys(hyps))}")   # 同じ文は一つにまとめて出す
+        return hyps
     except Exception as e:
         print(f"Whisper の書き分けを取れませんでした(同音異義語の確かめは辞書の候補だけで): {e}")
         return []
@@ -90,6 +94,8 @@ def whisper_function(wav_queue):
         print("Whisperスレッド：キュー待機中...")
         filepath = wav_queue.get()
         try:
+            # 入力ひとつごとの区切り(ログを見て、どこからどこまでが一回の入力かわかるように)
+            print(f"\n{'─' * 20} 入力 {datetime.now().strftime('%H:%M:%S')} {'─' * 20}")
             print(f"処理開始: {filepath}")
 
             segments, info = model.get_model().transcribe(filepath,

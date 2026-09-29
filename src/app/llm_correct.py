@@ -358,6 +358,8 @@ def correct(text, vocabulary=(), raw=None, nbest=()):
         print(f"入力補正: 返事がおかしいので捨てました: {answer[:40]!r}")
         fixed = text
     print(f"入力補正: {time.monotonic() - received:.2f} 秒{'(変更なし)' if fixed == text else ''}")
+    if fixed != text:
+        print(f"入力補正: {text} → {fixed}")
 
     # 同音異義語の確かめ(時間切れ・エラーのときは、そこまでの文が返る)
     checked = homophone.check(BASE_URL, fixed, raw if raw is not None else text, nbest,
