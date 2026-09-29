@@ -8,6 +8,7 @@ LLM は llama.cpp の llama-server を裏で動かして、HTTP で呼ぶ。
     立ち上がったら一回だけ補正を呼んで温める(起動してすぐは遅く、時間切れにかかるため)
 - stop(): 止める
 - correct(text): 直した文を返す。直せなかったとき(オフ、準備中、時間切れ、エラー、おかしな返事)は元の文を返す
+    LLM の補正のあとに、同音異義語の確かめ(homophone.py)もする。辞書は立ち上げのときに一緒に読む
     動いていた llama-server が落ちていたら、元の文を返しつつ裏で立ち上げ直す
     起動に失敗したとき(VRAM が足りない など)は、オン・オフを切り替えるまで立ち上げ直さない
 - status(): {"state": "off" / "starting" / "ready" / "error", "message": 失敗の理由(error のとき)}
@@ -34,6 +35,7 @@ import win32process
 
 import config
 import history
+import homophone
 import model_store
 from edition import EDITION
 from paths import CUDA_DIRS, LLAMA_SERVER_EXE, TEMP_DIR
@@ -205,6 +207,7 @@ def _start_worker():
         _chat("暖機です", [], time.monotonic() + STARTUP_TIMEOUT_SECONDS)
     except Exception as e:
         print(f"入力補正: 暖機に失敗(続行します): {e}")
+    homophone.load()   # 同音異義語の確かめの辞書(読めなかったら、確かめずに動く)
     if proc is _proc:   # 準備中にオフにされていなければ
         _set_state("ready")
         print("入力補正: 準備完了")
@@ -316,9 +319,16 @@ def _guard(original, answer, truncated):
     return answer
 
 
-def correct(text, vocabulary=()):
+def will_correct():
+    """今の入力で補正と同音異義語の確かめが動くか(Whisper の書き分けを取るかどうかを、文字起こしの係が決めるため)"""
+    return _enabled() and config.get("language") != "en" and _state == "ready" and homophone.is_ready()
+
+
+def correct(text, vocabulary=(), raw=None, nbest=()):
     """直した文を返す。直せなかったときは text をそのまま返す
-    vocabulary: [(よみがな, 言葉), ...]"""
+    vocabulary: [(よみがな, 言葉), ...]
+    raw: Whisper の文(音声辞書を通す前)。nbest: Whisper の書き分け(同音異義語の確かめで使う。無ければ空)
+    LLM の補正のあとに、同音異義語の確かめ(homophone.py)をする。待つ時間の上限は両方まとめて数える"""
     received = time.monotonic()
     # 準備中・起動の失敗(VRAM が足りない など)のときは補正しない。失敗のあとは、オン・オフを切り替えるまで試さない
     if not text or not _enabled() or config.get("language") == "en" or _state != "ready":
@@ -328,9 +338,10 @@ def correct(text, vocabulary=()):
         return text
 
     now = datetime.now()
+    context = _context(now)
+    deadline = received + config.get("llm_timeout")
     try:
-        answer, truncated = _chat(_user_message(text, _context(now), now), vocabulary,
-                                  received + config.get("llm_timeout"))
+        answer, truncated = _chat(_user_message(text, context, now), vocabulary, deadline)
     except (TimeoutError, OSError) as e:
         # 時間切れは socket.timeout(OSError の仲間)
         if _proc is None or _proc.poll() is not None:
@@ -345,6 +356,12 @@ def correct(text, vocabulary=()):
     fixed = _guard(text, answer, truncated)
     if fixed is None:
         print(f"入力補正: 返事がおかしいので捨てました: {answer[:40]!r}")
-        return text
+        fixed = text
     print(f"入力補正: {time.monotonic() - received:.2f} 秒{'(変更なし)' if fixed == text else ''}")
-    return fixed
+
+    # 同音異義語の確かめ(時間切れ・エラーのときは、そこまでの文が返る)
+    checked = homophone.check(BASE_URL, fixed, raw if raw is not None else text, nbest,
+                              [f"[{t.strftime('%H:%M:%S')}] {h}" for t, h in context], vocabulary, deadline)
+    if checked != fixed:
+        print(f"入力補正: 同音異義語の確かめまで {time.monotonic() - received:.2f} 秒")
+    return checked

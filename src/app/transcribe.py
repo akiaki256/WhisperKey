@@ -30,6 +30,31 @@ HALLUCINATION_PHRASES = [
         "ありがとうございました。",
 ]
 
+NBEST_BEAM = 5   # 書き分けを何通り取るか(ビームサーチの幅)
+
+
+def whisper_nbest(filepath):
+    """Whisper の書き分け(ビームサーチの 1〜NBEST_BEAM 位の文)。入力補正の「同音異義語の確かめ」で使う
+    faster-whisper の transcribe() は 1 位しか返さないので、中の generate を直接呼ぶ。VAD は通さず、頭の 30 秒を 1 枠で
+    (kotoba で +0.2 秒くらい。取れなかったら空で、確かめは辞書の候補だけになる)"""
+    try:
+        from faster_whisper.audio import decode_audio, pad_or_trim
+        from faster_whisper.tokenizer import Tokenizer
+        whisper = model.get_model()
+        fe = whisper.feature_extractor
+        segment = pad_or_trim(fe(decode_audio(filepath, sampling_rate=fe.sampling_rate))[:, : fe.nb_max_frames])
+        tokenizer = Tokenizer(whisper.hf_tokenizer, whisper.model.is_multilingual, task="transcribe",
+                              language=config.get("language"))
+        prompt = whisper.get_prompt(tokenizer, [], without_timestamps=True)
+        result = whisper.model.generate(whisper.encode(segment), [prompt], beam_size=NBEST_BEAM,
+                                        num_hypotheses=NBEST_BEAM, max_length=224,
+                                        suppress_blank=True, suppress_tokens=[-1])[0]
+        return [tokenizer.decode([t for t in ids if t < tokenizer.eot]).strip() for ids in result.sequences_ids]
+    except Exception as e:
+        print(f"Whisper の書き分けを取れませんでした(同音異義語の確かめは辞書の候補だけで): {e}")
+        return []
+
+
 def filter_hallucination(text):
     cleaned_text = text.strip()  # 前後の空白を除去して完全一致をチェック
     if cleaned_text in HALLUCINATION_PHRASES:# ハルシネーションフレーズと完全一致したら空文字を返す
@@ -97,7 +122,9 @@ def whisper_function(wav_queue):
             elif result:  # 空文字でない場合のみ貼り付け
                 # 入力補正(GPU版、オンのとき)。音声実行の判定は直す前の文で済ませてある
                 # (LLM が合言葉を言い換えて、実行されなくなるのを防ぐ)
-                fixed = llm_correct.correct(result, llm_vocab.get_current())
+                # 同音異義語の確かめのために、Whisper の書き分けも渡す(補正が動くときだけ取る)
+                nbest = whisper_nbest(filepath) if llm_correct.will_correct() else []
+                fixed = llm_correct.correct(result, llm_vocab.get_current(), raw=filtered_text, nbest=nbest)
                 paste.paste(fixed)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
                 print(f"入力: {fixed[:30]}...") # 最初の30文字を表示
                 undo_input.remember(fixed)  # 取り消しのキーで消せるように

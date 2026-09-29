@@ -22,6 +22,10 @@
 - LLAMA_SERVER_EXE: 入力補正(GPU版)で裏で動かす llama.cpp の llama-server
     exe化後: exeと同じフォルダ/llama-server/llama-server.exe
     開発中: _local/vendor/llama-server/<版>/llama-server.exe(版は build.bat の LLAMA_VER と合わせる)
+- HOMOPHONE_DIR: 入力補正(GPU版)の「同音異義語の確かめ」で使う辞書(MeCab の IPA 辞書と、読みの索引)。
+  _scripts/make_homophone_dict.py で作る。exe に入れると起動のたびに展開されて遅いので、exe の外に置く
+    exe化後: exeと同じフォルダ/homophone
+    開発中: _local/vendor/homophone
 """
 
 import os
@@ -39,6 +43,7 @@ if FROZEN:
     SOUNDS_DIR = os.path.join(APP_DIR, "assets", "sounds")
     CUDA_DIRS = [os.path.join(APP_DIR, "cuda")]
     LLAMA_SERVER_EXE = os.path.join(APP_DIR, "llama-server", "llama-server.exe")
+    HOMOPHONE_DIR = os.path.join(APP_DIR, "homophone")
 else:
     APP_DIR = os.path.join(PROJECT_ROOT, "_local", "dev_data")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
@@ -47,6 +52,7 @@ else:
     _nvidia = os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")
     CUDA_DIRS = [os.path.join(_nvidia, "cublas", "bin"), os.path.join(_nvidia, "cudnn", "bin")]
     LLAMA_SERVER_EXE = os.path.join(PROJECT_ROOT, "_local", "vendor", "llama-server", "b11216", "llama-server.exe")
+    HOMOPHONE_DIR = os.path.join(PROJECT_ROOT, "_local", "vendor", "homophone")
 
 # ユーザーデータ
 CONFIG_JSON = os.path.join(APP_DIR, "config.json")
