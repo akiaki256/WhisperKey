@@ -267,6 +267,16 @@ class Api:
             "restart_needed": _restart_needed(values),
         }
 
+    def reset_window_positions(self):
+        """インジケーターと候補の窓の位置を初期値に戻す(画面の外に出て見つからなくなったときの逃げ道)
+        インジケーターは config の変わったのを見て、その場で動く。候補の窓は次に開いたときから"""
+        d = config_store.defaults()
+        try:
+            config.update({k: d[k] for k in ("indicator_x", "indicator_y", "candidates_x", "candidates_y")})
+        except OSError as e:
+            return {"error": f"設定の保存に失敗しました: {e}"}
+        return {}
+
     def restart(self):
         tray_icon.restart_app()
 

@@ -15,6 +15,8 @@
 共通:
 - つまんで(ドラッグで)動かせる。丸は丸ごと、パネルは左端のつまむところ
   離した位置を config.json に保存し、次の起動でもそこに出す(丸とパネルで共通の位置)
+- 設定の位置が変わったら(設定タブの「窓の位置を元に戻す」)、起動中でもそこへ動く
+  モニターを外すなどして画面の外に出たら、初期位置に戻す(1 秒ごとに確かめる)
 - 押してもフォーカスを奪わない(WS_EX_NOACTIVATE)。入力したいアプリにフォーカスが残るので、
   貼り付けの行き先がこの窓になってしまうことがない
 - 丸のときは窓の背景の黒(#000000)を透明にして、丸の周りを抜く
@@ -299,10 +301,26 @@ class IndicatorWindow:
         """最前面の一番上に置き直す。フォーカスは奪わず、位置と大きさも変えない"""
         _user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
 
+    def follow_position(self):
+        """位置を合わせる(つまんでいる途中は何もしない)
+        - 設定の位置が変わったら(「窓の位置を元に戻す」のボタン)、そこへ動く
+        - モニターを外すなどして画面の外に出ていたら、初期位置に戻して保存する"""
+        if self.drag_offset is not None:
+            return
+        x, y = config.get("indicator_x"), config.get("indicator_y")
+        if self.ticks % RAISE_EVERY == 0 and not _on_screen(x, y):
+            d = config_store.defaults()
+            x, y = d["indicator_x"], d["indicator_y"]
+            self.save_position(x, y)
+        if (x, y) != (self.x, self.y):
+            self.x, self.y = x, y
+            self.root.geometry(f"+{x}+{y}")
+
     def refresh(self):
         mode = config.get("indicator_mode")
         if mode != self.mode:
             self.apply_mode(mode)
+        self.follow_position()
 
         recording = state_manager.get_state() == "start"
         transcribing = state_manager.is_transcribing()

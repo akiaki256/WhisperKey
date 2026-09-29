@@ -10,7 +10,9 @@
 - 最初の入力と違うところに背景色をつける
 - 見た目は操作パネルと同じ(暗い色、角丸と白い枠)。つまんで(見出しをドラッグして)動かせて、位置を config に覚える
   覚えるのは「横の真ん中」と「下の端」(candidates_x / candidates_y)。候補の長さで窓の幅が変わっても同じ場所に出るように
-  覚えていなければ、画面の中央下に出す
+  覚えていなければ、画面の中央下に出す。出すたびに、窓全体をモニターの見える範囲(タスクバーを除く)に収める
+- つまんでいる間・マウスが乗っている間は閉じない(「候補はありません」のときも、位置を合わせる時間があるように)
+- 設定タブの「窓の位置を元に戻す」で、覚えた位置を消せる(次に開いたときから画面の中央下)
 
 tkinter はインジケーターの窓(gui_indicator.py)と同じスレッドで動かす(そのスレッドの Tk の上に作る)。
 ほかのスレッド(ショートカットキーの待ち受け)からは request() でお願いを置き、この窓が POLL_MS ごとに拾う。
@@ -57,6 +59,15 @@ _user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
 _user32.SetWindowLongW.restype = ctypes.c_long
 _user32.MonitorFromPoint.argtypes = [wintypes.POINT, wintypes.DWORD]
 _user32.MonitorFromPoint.restype = wintypes.HMONITOR
+
+
+class _MONITORINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT),
+                ("dwFlags", wintypes.DWORD)]
+
+
+_user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(_MONITORINFO)]
+_user32.GetMonitorInfoW.restype = wintypes.BOOL
 _dwmapi = ctypes.WinDLL("dwmapi")
 
 GWL_EXSTYLE = -20
@@ -66,6 +77,8 @@ DWMWA_BORDER_COLOR = 34
 DWMWCP_ROUND = 2
 BORDER_WHITE = 0x00FFFFFF
 MONITOR_DEFAULTTONULL = 0
+MONITOR_DEFAULTTONEAREST = 2
+EDGE_MARGIN = 8   # 画面の端に寄せるときの余白
 
 _requests = queue.Queue()
 
@@ -82,6 +95,15 @@ def _dwm_set(hwnd, attribute, value):
 
 def _on_screen(x, y):
     return bool(_user32.MonitorFromPoint(wintypes.POINT(x, y), MONITOR_DEFAULTTONULL))
+
+
+def _work_area(x, y):
+    """(x, y) に一番近いモニターの、タスクバーを除いた範囲 (左, 上, 右, 下)"""
+    info = _MONITORINFO()
+    info.cbSize = ctypes.sizeof(_MONITORINFO)
+    _user32.GetMonitorInfoW(_user32.MonitorFromPoint(wintypes.POINT(x, y), MONITOR_DEFAULTTONEAREST), ctypes.byref(info))
+    r = info.rcWork
+    return r.left, r.top, r.right, r.bottom
 
 
 def _set_temp_keys(on):
@@ -114,6 +136,11 @@ class CandidateWindow:
                     break
                 self.handle(command)
             now = time.monotonic()
+            if self.top is not None and (self.drag_offset is not None or self.pointer_inside()):
+                # つまんでいる間・マウスが乗っている間は閉じない(位置を合わせたり、読んだりする時間)
+                self.last_touch = now
+                if self.message_until is not None:
+                    self.message_until = max(self.message_until, now + MESSAGE_SECONDS)
             if self.top is not None and self.message_until is None and now - self.last_touch > IDLE_CLOSE_SECONDS:
                 self.close()
             if self.message_until is not None and now > self.message_until:
@@ -137,6 +164,11 @@ class CandidateWindow:
             self.confirm(self.selected)
         elif command == "cancel":
             self.close()
+
+    def pointer_inside(self):
+        px, py = self.top.winfo_pointerxy()
+        x, y = self.top.winfo_rootx(), self.top.winfo_rooty()
+        return x <= px < x + self.top.winfo_width() and y <= py < y + self.top.winfo_height()
 
     # ---- 開く・閉じる ----
 
@@ -255,13 +287,18 @@ class CandidateWindow:
     # ---- 位置(横の真ん中と、下の端で覚える) ----
 
     def place(self):
+        """覚えている位置に出す。窓全体が、一番近いモニターの見える範囲(タスクバーを除く)に収まるよう寄せる
+        (モニターを外した・解像度を変えた・候補が長くて窓が広い、などで、はみ出さないように)"""
         top = self.top
         w, h = top.winfo_reqwidth(), top.winfo_reqheight()
         cx, bottom = config.get("candidates_x"), config.get("candidates_y")
         if cx is None or bottom is None or not _on_screen(cx, bottom - 10):
             cx = top.winfo_screenwidth() // 2
             bottom = top.winfo_screenheight() - BOTTOM_MARGIN
-        top.geometry(f"+{cx - w // 2}+{bottom - h}")
+        left, upper, right, lower = _work_area(cx, bottom - 10)
+        x = min(max(cx - w // 2, left + EDGE_MARGIN), right - w - EDGE_MARGIN)
+        y = min(max(bottom - h, upper + EDGE_MARGIN), lower - h - EDGE_MARGIN)
+        top.geometry(f"+{max(x, left)}+{max(y, upper)}")
 
     def bind_drag(self, widget):
         widget.bind("<ButtonPress-1>", self.on_press)

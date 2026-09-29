@@ -227,5 +227,13 @@ document.getElementById("btn-restart").addEventListener("click", () => {
   window.pywebview.api.restart();
 });
 
+// インジケーターと候補の窓を、はじめの位置に戻す(インジケーターはその場で動く。候補の窓は次に開いたときから)
+document.getElementById("btn-reset-positions").addEventListener("click", async (e) => {
+  const button = e.currentTarget;
+  const result = await window.pywebview.api.reset_window_positions();
+  button.textContent = result.error ? "戻せませんでした" : "戻しました";
+  setTimeout(() => { button.textContent = "元に戻す"; }, 2000);
+});
+
 // pywebview の準備ができてから Python を呼ぶ
 window.addEventListener("pywebviewready", loadSettings);
