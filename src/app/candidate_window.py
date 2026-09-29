@@ -123,6 +123,7 @@ class CandidateWindow:
         self.last_touch = 0.0
         self.message_until = None
         self.drag_offset = None
+        self.version = None     # 開いたときの候補の版(candidates.choose に渡す)
         self.root.after(POLL_MS, self.poll)
 
     # ---- お願いを拾う ----
@@ -145,6 +146,8 @@ class CandidateWindow:
                 self.close()
             if self.message_until is not None and now > self.message_until:
                 self.close()
+            if self.top is not None and self.message_until is None and candidates.get()[2] != self.version:
+                self.close()   # 開いたあとに次の入力が来た(並びが古くなった)ので閉じる
         except Exception as e:
             print(f"候補の窓でエラー(次の回も続けます): {e!r}")
         finally:
@@ -173,7 +176,7 @@ class CandidateWindow:
     # ---- 開く・閉じる ----
 
     def open(self):
-        items, current = candidates.get()
+        items, current, self.version = candidates.get()
         self.close()
         self.build(items, current)
         if not items or len(items) == 1:
@@ -199,7 +202,7 @@ class CandidateWindow:
     def confirm(self, index):
         self.close()
         # Backspace と貼り付けが終わるまで窓のスレッドが固まらないよう、別のスレッドで
-        threading.Thread(target=candidates.choose, args=(index,), daemon=True).start()
+        threading.Thread(target=candidates.choose, args=(index, self.version), daemon=True).start()
 
     # ---- 中身を作る ----
 

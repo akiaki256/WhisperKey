@@ -9,9 +9,10 @@
 
 - set_last(text, before_correction, alternatives): 入力したあとに呼ぶ
 - forget(): 取り消し・音声実行のあとに呼ぶ(もう入れ替えられないので)
-- get(): (候補の並び, 今の入力の番号)。候補は {"text", "spans": [(始め, 長さ)], "note"}
-    spans は今の入力と違うところ(窓で背景色をつける)
-- choose(i): i 番目の候補に入れ替える(Backspace で今の入力を消して、貼り付ける)。入力履歴の一番新しいものも書き換える
+- get(): (候補の並び, 今の入力の番号, 版)。候補は {"text", "spans": [(始め, 長さ)], "note"}
+    spans は最初の入力と違うところ(窓で背景色をつける)。版は候補が新しくなるたびに増える
+- choose(i, 版): i 番目の候補に入れ替える(Backspace で今の入力を消して、貼り付ける)。入力履歴の一番新しいものも書き換える
+    窓を開いたあとに次の入力が来ていたら(版が違えば)、見ていた並びと違うので入れ替えない
     取り消しのキーと同じく、入力のあとにカーソルを動かしていると、違うところが消える
 """
 
@@ -27,6 +28,7 @@ import undo_input
 _lock = threading.Lock()
 _items = []      # 候補の並び。0 番目が最初に入力した文
 _current = 0     # 今、入力されている候補の番号
+_version = 0     # 候補が新しくなるたびに増やす(窓を開いたあとに次の入力が来たら、古い並びで入れ替えないため)
 
 
 def _spans(base, text):
@@ -49,25 +51,33 @@ def set_last(text, before_correction, alternatives):
             items.append({"text": alt, "spans": [(start, length)], "note": f"{p:.0%}"})
     if before_correction and before_correction not in seen:
         items.append({"text": before_correction, "spans": _spans(text, before_correction), "note": "補正前"})
+    global _version
     with _lock:
         _items, _current = items, 0
+        _version += 1
 
 
 def forget():
-    global _items, _current
+    global _items, _current, _version
     with _lock:
         _items, _current = [], 0
+        _version += 1
 
 
 def get():
+    """(候補の並び, 今の入力の番号, 版)。版は choose に渡す"""
     with _lock:
-        return [dict(i) for i in _items], _current
+        return [dict(i) for i in _items], _current, _version
 
 
-def choose(index):
-    """index 番目の候補に入れ替える。同じ候補なら何もしない"""
+def choose(index, version):
+    """index 番目の候補に入れ替える。同じ候補なら何もしない
+    version: 窓を開いたときの版。そのあと次の入力が来ていたら(版が違えば)、見ていた並びと違うので入れ替えない"""
     global _current
     with _lock:
+        if version != _version:
+            print("候補を出す: 窓を開いたあとに次の入力があったので、入れ替えませんでした")
+            return
         if not (0 <= index < len(_items)) or index == _current:
             return
         old, new = _items[_current]["text"], _items[index]["text"]
