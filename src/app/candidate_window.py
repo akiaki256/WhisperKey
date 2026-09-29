@@ -1,7 +1,7 @@
 """
 「候補を出す」の窓(GPU版。IME の変換候補の窓のつもり)
 
-- 候補を出すキー(初期値 F8)で開く。開いたときは、今の入力の次の候補を選んでいる
+- 候補を出すキー(初期値 F8)で開く。開いたときは、今の入力を選んでいる(Enter を押しても何も変わらない)
   開いている間は、F8 をもう一度・↓ で次、↑ で前、Enter で確定、Esc で閉じる。行をクリックしても確定
 - 確定したら candidates.choose で入れ替える(Backspace で今の入力を消して貼り付ける)。窓は閉じる
 - ↑↓・Enter・Esc は、窓が開いている間だけ WhisperKey が借りる(RegisterHotKey)。閉じたらすぐ返す
@@ -185,7 +185,7 @@ class CandidateWindow:
             return
         self.message_until = None
         self.last_touch = time.monotonic()
-        self.select((current + 1) % len(items))
+        self.select(current)   # 開いたときは今の入力を選んでいる(F8 をもう一度・↓ で次へ)
         _set_temp_keys(True)
 
     def close(self):
