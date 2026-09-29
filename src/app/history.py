@@ -7,6 +7,7 @@
 - 新しいものが先頭。LIMIT 件を超えた古いものは消える
   (件数は選べない。入力補正が直前の入力を履歴から取るので、決まった数にしておく)
 - add_listener(fn): 履歴が変わったら fn(今の履歴) を呼んでもらう(画面の一覧を更新するため)
+- replace_latest(old, new): 「候補を出す」で別の候補を選んだとき、一番新しい入力を書き換える
 
 中身: [{"time": "2026-09-27T21:30:05", "text": "入力した文章"}, ...]
     入力補正で直したときは、直す前の文も "raw" に残す(画面には出さない。LLM が変に直したときに見比べるため)
@@ -78,6 +79,20 @@ def add(text, raw=None):
         entry["raw"] = raw
     with _lock:
         _entries = [entry] + _entries[:LIMIT - 1]
+        try:
+            _save()
+        except OSError as e:
+            print(f"入力履歴の保存に失敗: {e}")
+    _notify()
+
+
+def replace_latest(old_text, new_text):
+    """一番新しい入力が old_text なら、new_text に書き換える(「候補を出す」で別の候補を選んだとき)
+    直前の入力として LLM に渡るのが、キミの選んだ文になるように。補正する前の文(raw)はそのまま残す"""
+    with _lock:
+        if not _entries or _entries[0].get("text") != old_text:
+            return
+        _entries[0] = dict(_entries[0], text=new_text)
         try:
             _save()
         except OSError as e:

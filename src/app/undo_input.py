@@ -38,7 +38,7 @@ def forget():
     remember(None)
 
 
-def _wait_for_modifiers_released(timeout=2.0):
+def wait_for_modifiers_released(timeout=2.0):
     """
     修飾キーが離されるのを待つ。取り消しのキーを押したまま Backspace を送ると組み合わさってしまうため
     (Shift+F9 なら Shift+Backspace、Ctrl を含むキーなら Ctrl+Backspace = 単語ごと消す、になる)
@@ -60,7 +60,7 @@ def undo():
         print("取り消し：取り消せる入力がありません")
         return
 
-    _wait_for_modifiers_released()
+    wait_for_modifiers_released()
     for _ in range(len(text)):
         keyboard.send("backspace")
     print(f"取り消し：{len(text)} 文字")

@@ -75,6 +75,7 @@ LANGUAGE_DEFAULT = "ja"
 SHORTCUT_DEFAULT = "f9"
 UNDO_KEY_DEFAULT = "f10"  # 直前の入力を取り消す。"" なら割り当てない
 MODE_KEY_DEFAULT = "shift+f9"  # 入力モード切り替え(通常 ⇔ プッシュトゥトーク)。"" なら割り当てない
+CANDIDATES_KEY_DEFAULT = "f8"  # 候補を出す(GPU版)。"" なら割り当てない
 
 # 本体の窓の見た目
 THEME_CHOICES = [
@@ -120,6 +121,7 @@ def defaults():
         "shortcut_key": SHORTCUT_DEFAULT,
         "undo_key": UNDO_KEY_DEFAULT,
         "mode_key": MODE_KEY_DEFAULT,
+        "candidates_key": CANDIDATES_KEY_DEFAULT,
         # True なら音声入力のキーを押している間だけ録音する(False は押すたびにオン/オフ)
         "push_to_talk": False,
         # 効果音(assets/sounds の wav のファイル名)。"" なら鳴らさない
@@ -136,6 +138,9 @@ def defaults():
         "indicator_mode": INDICATOR_MODE_DEFAULT,
         "indicator_x": 5,
         "indicator_y": 20,
+        # 「候補を出す」の窓の位置(横の真ん中と下の端のピクセル)。None なら画面の中央下。つまんで動かすと保存される
+        "candidates_x": None,
+        "candidates_y": None,
         "theme": THEME_DEFAULT,
         # 入力履歴(history.json)。オフでも今ある履歴には触らない。件数は history.LIMIT で決まっている
         "history_enabled": True,
@@ -165,6 +170,11 @@ def _fix_int(v, default):
     if not _is_number(v):
         return default
     return int(v)
+
+
+def _fix_optional_int(v):
+    # 整数か None(「まだ決まっていない」)。それ以外は None
+    return int(v) if _is_number(v) else None
 
 
 def _fix_silence(v, default):
@@ -228,6 +238,7 @@ def normalize(raw):
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
         "undo_key": _fix_optional_text(merged["undo_key"], d["undo_key"]),
         "mode_key": _fix_optional_text(merged["mode_key"], d["mode_key"]),
+        "candidates_key": _fix_optional_text(merged["candidates_key"], d["candidates_key"]),
         "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
         "sound_startup": _fix_optional_text(merged["sound_startup"], d["sound_startup"]),
         "sound_on": _fix_optional_text(merged["sound_on"], d["sound_on"]),
@@ -239,6 +250,8 @@ def normalize(raw):
         "indicator_mode": _fix_choice(merged["indicator_mode"], INDICATOR_MODE_CHOICES, d["indicator_mode"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
         "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
+        "candidates_x": _fix_optional_int(merged["candidates_x"]),
+        "candidates_y": _fix_optional_int(merged["candidates_y"]),
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
         "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
         "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),

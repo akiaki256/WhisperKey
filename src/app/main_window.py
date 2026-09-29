@@ -43,8 +43,12 @@ _shortcut_errors = {}  # 起動時にショートカットキーを登録でき�
 _downloading = None    # ダウンロード中のモデルの名前(一度に一つだけ)
 
 # ショートカットの役割ごとの、config の項目名と画面での名前(key_shortcut.ACTIONS と合わせる)
+# 「候補を出す」は GPU版だけ(入力補正の同音異義語の確かめから候補を作るため)
 SHORTCUT_CONFIG_KEYS = {"toggle": "shortcut_key", "mode": "mode_key", "undo": "undo_key"}
 SHORTCUT_LABELS = {"toggle": "音声入力", "mode": "入力モード切り替え", "undo": "直前の入力を取り消す"}
+if EDITION == "gpu":
+    SHORTCUT_CONFIG_KEYS["candidates"] = "candidates_key"
+    SHORTCUT_LABELS["candidates"] = "候補を出す"
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {

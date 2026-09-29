@@ -16,6 +16,9 @@ LLM は、それだけ見ると正しい言葉になる同音異義語(仕様 / 
 
 - load(): 辞書を読む(時間がかかるので、入力補正の立ち上げと一緒に裏で呼ぶ)。読めなかったら確かめずに動く
 - check(text, raw, nbest, context, vocabulary, deadline): 確かめた文を返す。時間切れ・エラーのときは、そこまでの文を返す
+- take_alternatives(): 最後の check で確かめた場所から作った「一か所だけ変えた文」を、確率の高い順に返して忘れる
+    [(文, 確率, (変えたところの始め, 長さ)), ...]。「候補を出す」の窓(candidate_window.py)で使う
+    check が動かなかった入力では空(前の入力の分が残らないように、取り出したら忘れる)
 """
 
 import json
@@ -32,6 +35,7 @@ from paths import HOMOPHONE_DIR
 
 THRESHOLD = 0.8        # 元の言葉以外が、この確率以上で勝ったら差し替える
 MAX_CANDIDATES = 4     # 一か所に並べる候補の数(元の言葉のほかに)
+ALT_MIN_PROB = 0.05    # 「候補を出す」の窓に並べる、一か所だけ変えた文の確率の下限
 LETTERS = "ABCDEFGH"
 TARGET_POS2 = {"一般", "サ変接続", "形容動詞語幹", "副詞可能", "ナイ形容詞語幹"}
 KANJI = re.compile(r"[一-鿿々]")
@@ -53,6 +57,8 @@ _tagger = None
 _dict = None
 _base_reading = {}
 _lock = threading.Lock()
+_records = []        # 今の check で確かめた場所 [{"pos": 今の文での位置, "chosen": 選んだ言葉, "probs": {言葉: 確率}}]
+_alternatives = []   # 最後の check の「一か所だけ変えた文」(take_alternatives で取り出す)
 
 
 # =====================================================
@@ -305,10 +311,39 @@ def _check_slots(base_url, text, slot_list, context_lines, vocab_lines, deadline
         best = max(p, key=p.get)
         replaced = best != orig and p[best] >= THRESHOLD
         _log_slot(label, orig, p, replaced)
+        chosen = best if replaced else orig
         if replaced:
             text = before + best + after
-            shift += len(best) - len(orig)
+            delta = len(best) - len(orig)
+            shift += delta
+            for r in _records:   # 後ろにある、前に確かめた場所の位置をずらす
+                if r["pos"] > s:
+                    r["pos"] += delta
+        _records.append({"pos": s, "chosen": chosen, "probs": p})
     return text, True
+
+
+def _make_alternatives(text):
+    """今の文から一か所だけ変えた文を、その言葉の確率の高い順に [(文, 確率, (始め, 長さ))]"""
+    alts = {}
+    for r in _records:
+        pos, chosen = r["pos"], r["chosen"]
+        if text[pos:pos + len(chosen)] != chosen:
+            continue   # 位置がずれていたら(念のため)並べない
+        for w, p in r["probs"].items():
+            if w == chosen or p < ALT_MIN_PROB:
+                continue
+            alt = text[:pos] + w + text[pos + len(chosen):]
+            if alt != text and (alt not in alts or p > alts[alt][0]):
+                alts[alt] = (p, (pos, len(w)))
+    return [(t, p, span) for t, (p, span) in sorted(alts.items(), key=lambda x: -x[1][0])]
+
+
+def take_alternatives():
+    """最後の check の「一か所だけ変えた文」を返して忘れる"""
+    global _alternatives
+    alts, _alternatives = _alternatives, []
+    return alts
 
 
 def check(base_url, text, raw, nbest, context_lines, vocabulary, deadline):
@@ -316,6 +351,9 @@ def check(base_url, text, raw, nbest, context_lines, vocabulary, deadline):
     raw: Whisper の文(音声辞書を通す前)。nbest: Whisper の 2〜5 位の書き分け(無ければ空)
     context_lines: 直前の入力(「[時:分:秒] 文」)。vocabulary: よく使う言葉 [(よみがな, 言葉), ...]
     時間切れ・エラーのときは、そこまでに確かめた文を返す"""
+    global _alternatives
+    _records.clear()
+    _alternatives = []
     if not is_ready() or not text:
         return text
     vocab_lines = [f"{r} → {w}" for r, w in vocabulary]
@@ -334,4 +372,5 @@ def check(base_url, text, raw, nbest, context_lines, vocabulary, deadline):
     except Exception as e:   # 候補を出すところ(MeCab など)の思わぬエラーでも、入力は止めない
         print(f"同音異義語の確かめ: エラー(そこまでの文で入力): {e}")
     print(f"同音異義語の確かめ: 辞書 {n_dict} か所・Whisper {n_whisper} か所を {time.monotonic() - started:.2f} 秒で確かめた")
+    _alternatives = _make_alternatives(text)
     return text

@@ -98,6 +98,8 @@ import history
 import llm_correct
 import llm_vocab
 import undo_input
+import candidates
+import candidate_window
 import sounds
 
 
@@ -129,15 +131,23 @@ else:
 ## 入力補正(GPU版、オンのとき)の llama-server を裏で立ち上げる。待たずに次へ進み、準備ができるまでは補正せずに入力する
 llm_correct.start()
 
-## ショートカットキーの登録(音声入力・入力モード切り替え・直前の入力を取り消す)
+## ショートカットキーの登録(音声入力・入力モード切り替え・直前の入力を取り消す・候補を出す)
 ## 登録できなくても終了しない(窓がショートカットタブを開いて知らせ、そこで選び直してもらう)
-state_manager.set_handler("undo", undo_input.undo)
+## 取り消したら「候補を出す」の候補も忘れる(入れ替える入力が無くなるので)
+state_manager.set_handler("undo", lambda: (undo_input.undo(), candidates.forget()))
 state_manager.can_start = model.is_ready
 state_manager.on_start_blocked = lambda: main_window.show("model")  # モデルタブでダウンロードしてもらう
+## 候補を出す(GPU版だけ)。候補の窓が開いている間だけ ↑↓・Enter・Esc も借りる(candidate_window.py)
+state_manager.set_handler("candidates", lambda: candidate_window.request("open_or_next"))
+state_manager.set_handler("cand_up", lambda: candidate_window.request("up"))
+state_manager.set_handler("cand_down", lambda: candidate_window.request("down"))
+state_manager.set_handler("cand_ok", lambda: candidate_window.request("ok"))
+state_manager.set_handler("cand_cancel", lambda: candidate_window.request("cancel"))
 shortcut_errors = state_manager.start_listener({
     "toggle": settings["shortcut_key"],
     "undo": settings["undo_key"],
     "mode": settings["mode_key"],
+    **({"candidates": settings["candidates_key"]} if EDITION == "gpu" else {}),
 })
 
 print("動作準備完了")

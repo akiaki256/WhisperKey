@@ -64,6 +64,17 @@
           </div>
         </div>
 
+        <div class="card gpu-only">
+          <div class="card-text">
+            <div class="card-title">候補を出す</div>
+            <div class="card-desc">入力補正で入力した文の、ほかの候補を出します。もう一度押すか ↑↓ で選んで、Enter で入れ替えます(Esc で閉じる)。入力のあとにカーソルを動かしていると、違うところが消えるので注意してください</div>
+          </div>
+          <div class="card-control">
+            <button class="shortcut-button" data-action="candidates"></button>
+            <button class="icon-button shortcut-clear" data-action="candidates" title="割り当てない"><span class="icon">&#xE711;</span></button>
+          </div>
+        </div>
+
         <!-- 押すと広がるカード。中身はキーの判定(key_shortcut.py の check_new_shortcut と
              settings_shortcut.js の mainKeyName)に合わせて書く -->
         <details class="card expander">

@@ -49,6 +49,12 @@ ACTIONS = {
     "toggle": 1,  # 音声入力(押すたびにオン/オフ、プッシュトゥトークなら押している間だけ)
     "undo": 2,    # 直前の入力を取り消す
     "mode": 3,    # 入力モード切り替え(通常 ⇔ プッシュトゥトーク)
+    "candidates": 4,   # 候補を出す(GPU版。candidate_window.py)
+    # 候補の窓が開いている間だけ借りるキー(candidate_window.TEMP_KEYS。画面では選べない)
+    "cand_up": 5,
+    "cand_down": 6,
+    "cand_ok": 7,
+    "cand_cancel": 8,
 }
 
 _MODIFIER_FLAGS = {
@@ -61,6 +67,10 @@ _SPECIAL_KEYS = {
     "space": 0x20,
     "enter": 0x0D,
     "return": 0x0D,
+    # 候補の窓が開いている間だけ借りるキー(画面では選べない。check_new_shortcut が F1〜F24 以外を断る)
+    "escape": 0x1B,
+    "up": 0x26,
+    "down": 0x28,
 }
 
 

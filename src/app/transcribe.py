@@ -1,10 +1,12 @@
 import os
 from datetime import datetime
 
+import candidates
 import config
 import convert_dict
 import command
 import history
+import homophone
 import llm_correct
 import llm_vocab
 import undo_input
@@ -124,6 +126,7 @@ def whisper_function(wav_queue):
             if command_executed:
                 print("コマンドを実行")
                 undo_input.forget()  # 直前がコマンドなので、その前の入力は取り消させない
+                candidates.forget()  # 「候補を出す」で、その前の入力を入れ替えさせない
 
             elif result:  # 空文字でない場合のみ貼り付け
                 # 入力補正(GPU版、オンのとき)。音声実行の判定は直す前の文で済ませてある
@@ -135,6 +138,8 @@ def whisper_function(wav_queue):
                 print(f"入力: {fixed[:30]}...") # 最初の30文字を表示
                 undo_input.remember(fixed)  # 取り消しのキーで消せるように
                 history.add(fixed, raw=result)  # 入力した文章だけを残す(音声実行は残さない)
+                # 「候補を出す」の候補(同音異義語の確かめの「一か所だけ変えた文」と、補正する前の文)
+                candidates.set_last(fixed, result, homophone.take_alternatives())
 
             # 処理済みファイルを削除
             os.remove(filepath)

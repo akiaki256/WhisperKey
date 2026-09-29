@@ -36,9 +36,11 @@ import tkinter as tk
 
 from PIL import Image, ImageDraw, ImageTk
 
+import candidates
 import config
 import config_store
 import undo_input
+from candidate_window import CandidateWindow
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
@@ -153,6 +155,9 @@ class IndicatorWindow:
         self.root.withdraw()
         self.visible = False
 
+        # 「候補を出す」の窓(GPU版)。tkinter を同じスレッドで使うため、この Tk の上に作る
+        self.candidate_window = CandidateWindow(self.root)
+
         self.root.after(POLL_MS, self.update_indicator)
 
     # ---- 中身を作る ----
@@ -237,7 +242,8 @@ class IndicatorWindow:
 
     def on_undo(self):
         # Backspace を送り終わるまで窓が固まらないよう、別のスレッドで
-        threading.Thread(target=undo_input.undo, daemon=True).start()
+        # 取り消したら「候補を出す」の候補も忘れる(入れ替える入力が無くなるので)
+        threading.Thread(target=lambda: (undo_input.undo(), candidates.forget()), daemon=True).start()
 
     def on_ptt(self):
         try:
