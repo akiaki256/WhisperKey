@@ -14,6 +14,10 @@ const vocabList = document.getElementById("vocab-list");
 function showCorrectionToggle(enabled) {
   correctionToggle.checked = enabled;
   document.getElementById("llm-correction-label").textContent = enabled ? "オン" : "オフ";
+  // 句読点補正は入力補正がオンのときだけ動くので、オフの間は薄くして知らせる(スイッチ自体は切り替えられる)
+  for (const id of ["llm-punctuation", "llm-punctuation-timeout-range"]) {
+    document.getElementById(id).closest(".card").classList.toggle("inactive", !enabled);
+  }
 }
 
 correctionToggle.addEventListener("change", async () => {
