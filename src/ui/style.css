@@ -163,7 +163,7 @@ input {
 }
 
 nav {
-  width: 220px;
+  width: 170px;   /* 一番長い「ショートカット」が収まる幅 */
   flex-shrink: 0;
   padding: 8px;
 }

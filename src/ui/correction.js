@@ -125,7 +125,7 @@ function showVocabSummary() {
   const rows = collectVocabRows().filter((row) => row.word.trim() !== "");
   const missing = rows.filter((row) => row.reading.trim() === "").length;
   document.getElementById("vocab-summary").textContent = rows.length === 0
-    ? "LLM が補正するときの判断材料になる言葉とよみがな(まだ登録していません)"
+    ? "まだ登録していません"
     : `${rows.length} 件を登録${missing > 0 ? `(よみがなが空で使われないもの: ${missing} 件)` : ""}`;
 }
 
