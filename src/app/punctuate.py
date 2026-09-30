@@ -6,6 +6,8 @@ Whisper の句読点は、その場その場で付いたり付かなかったり
 - はがす(プログラム): 「、」「。」を全部取る(「？」「！」は残す)
 - 付ける(LLM): 句読点を付けた文を書かせる。llama-server の文法(GBNF)で縛るので、元の文字をこの順で書くことしかできない
     句読点を入れてよいのは MeCab の単語の切れ目だけ(英数字どうしの間、？！の前後、空白の後は除く)。最後は「。」だけ
+    最後の単語が助詞(格助詞・係助詞・接続助詞など)や接続詞なら、最後に「。」は入れられない
+    (区切って話すと、LLM は前後が見えず「例えば。」「こんな感じで。」と付けてしまうため)
 - 絞る(プログラム): LLM が「、」を選んだ確率が COMMA_THRESHOLD より低ければ、その「、」は付けない
     (「次は、」「平均速度は、」のような付けすぎが消える。つなぎの「、」はほぼ 1.00 なので残る)
     足すことはしない。「。」は LLM が書いたまま
@@ -28,6 +30,10 @@ PUNCT = "、。，．"        # はがすもの(英数字の , . は触らない
 MARKS = "、。"           # 付けるもの
 NO_AFTER = "？！?!、。"    # この後には句読点を入れない
 NO_BEFORE = "？！?!"      # この前には句読点を入れない
+# 最後がこの形なら、まだ続く途中(区切って話している)なので、最後に「。」を入れない(「例えば」「こんな感じで」「入力すると」)
+# 接続助詞の「て」「で」は、お願いの言い切り(「印刷して」「読んで」)にもなるので、LLM に任せる
+NO_FINAL_POS1 = {"接続詞", "連体詞"}
+NO_FINAL_PARTICLES = {"格助詞", "連体化", "係助詞", "接続助詞"}
 
 SYSTEM = """あなたは音声入力の文に句読点を付ける係です。
 渡された文を、「、」と「。」を付けてそのまま書き写してください。文字を足したり、消したり、言い換えたりはしません。
@@ -63,8 +69,10 @@ def _is_ascii_word(ch):
 def _points(text):
     """句読点を入れてよい位置(その文字の前に入れる。最後 = len(text) も含む)"""
     ok = set()
-    for p in homophone.word_ends(text):
+    for p, feat in homophone.word_ends(text):
         if p <= 0:
+            continue
+        if p == len(text) and _continues(feat):
             continue
         before = text[p - 1]
         after = text[p] if p < len(text) else ""
@@ -74,6 +82,15 @@ def _points(text):
             continue
         ok.add(p)
     return sorted(ok)
+
+
+def _continues(feat):
+    """最後の単語が、まだ続く形か(feat は MeCab の IPA 辞書の特徴: 品詞, 細分類1, …, 原形)"""
+    if feat[0] in NO_FINAL_POS1:
+        return True
+    if feat[0] == "助詞" and feat[1] in NO_FINAL_PARTICLES:
+        return not (feat[1] == "接続助詞" and feat[6] in ("て", "で"))
+    return False
 
 
 def _literal(s):

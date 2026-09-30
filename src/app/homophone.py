@@ -96,8 +96,8 @@ def is_ready():
 # =====================================================
 
 def word_ends(text):
-    """単語の終わりの位置(文の中の位置)。句読点補正(punctuate.py)で、句読点を入れてよい切れ目に使う"""
-    return [pos + len(surface) for pos, surface, _ in _tokens(text)]
+    """[(単語の終わりの位置, 品詞などの特徴)]。句読点補正(punctuate.py)で、句読点を入れてよい切れ目を決めるのに使う"""
+    return [(pos + len(surface), feat) for pos, surface, feat in _tokens(text)]
 
 
 def _tokens(text):
