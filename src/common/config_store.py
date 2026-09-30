@@ -4,6 +4,7 @@
 
 - load(): ファイルを読み、初期値の上に重ね、おかしな値を直して返す
     ファイルが無ければ初期値で作る。書式が壊れていれば ConfigError
+- set_aside_broken(): 壊れた config.json を別の名前に移して、初期値で作り直す(ConfigError のあとに呼ぶ)
     → アップデートで項目が増えても、古い config.json で落ちない
 - save(): 値を直してから、一時ファイル経由で書き込む
     → 書き込みの途中で落ちても、config.json が壊れない
@@ -289,6 +290,24 @@ def load():
         raise ConfigError("config.json の書式が不正です(中身が {...} の形になっていません)")
 
     return normalize(raw)
+
+
+def set_aside_broken():
+    """壊れた config.json を config.broken-<日時>.json に移し(消さずに残す)、初期値で作り直す
+    戻り値: (初期値の設定, 移した先のパス)。移せなかったときのパスは None"""
+    from datetime import datetime
+    moved = os.path.join(os.path.dirname(CONFIG_JSON), f"config.broken-{datetime.now():%Y%m%d-%H%M%S}.json")
+    try:
+        os.replace(CONFIG_JSON, moved)
+    except OSError as e:
+        print(f"壊れた config.json を移せませんでした(上書きします): {e}")
+        moved = None
+    config = defaults()
+    try:
+        save(config)
+    except OSError as e:
+        print(f"初期設定の書き込みに失敗(初期値のまま続行): {e}")
+    return config, moved
 
 
 def save(config):

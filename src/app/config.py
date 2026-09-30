@@ -2,6 +2,7 @@
 本体の「今の設定」(中身の読み書きは common/config_store.py)
 
 - load_config(): 起動時に一度だけ呼ぶ。config.json を読んで「今の設定」にする
+    config.json が壊れていたら、別の名前で残して初期値で起動する(知らせの窓を出す)
 - get(key): 今の設定の値。録音・文字起こしのループは毎回ここを見に来るので、
   画面で変えた値が次の一回から効く
 - update(changes): 一部の項目を変えて config.json に保存する。値は config_store が直す
@@ -11,7 +12,6 @@
   (録音の係がマイクを「既定」に戻したときに、画面の表示も切り替えるため)
 """
 
-import sys
 import threading
 
 import config_store
@@ -30,9 +30,12 @@ def load_config():
         return dict(_current)
 
     except config_store.ConfigError as e:
-        show_error("設定ファイルエラー", f"{e}\nソフトを終了します")
+        # 壊れたファイルは別の名前で残して、初期値で起動する(ソフトは止めない)
         print(f"error: {e}")
-        sys.exit(1)
+        _current, moved = config_store.set_aside_broken()
+        kept = f"壊れたファイルは次の名前で残しています。\n{moved}" if moved else "壊れたファイルは初期値で上書きしました。"
+        show_error("設定ファイルエラー", f"{e}\n設定を初期値に戻して起動します。\n{kept}")
+        return dict(_current)
 
 
 def get(key):
