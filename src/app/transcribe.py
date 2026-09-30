@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 
 import candidates
@@ -59,6 +60,20 @@ def whisper_nbest(filepath):
     except Exception as e:
         print(f"Whisper の書き分けを取れませんでした(同音異義語の確かめは辞書の候補だけで): {e}")
         return []
+
+
+PERIODS = "。．"   # 「。」を消すときに消すもの
+CLOSING_BRACKETS = "」』）)］]】"   # この前の「。」は、スペースにせずに消すだけ(「はい。」→「はい」)
+
+
+def finish_text(text):
+    """入力する直前の仕上げ。設定で「「。」を消す」がオンなら、
+    文の最後の「。」は消して、文と文の間の「。」は半角スペースにする(「はい。行きます。」→「はい 行きます」)"""
+    if config.get("remove_periods"):
+        text = text.rstrip().rstrip(PERIODS + " 　").rstrip()
+        text = re.sub(f"[{PERIODS}]+\\s*(?=[{re.escape(CLOSING_BRACKETS)}])", "", text)
+        text = re.sub(f"[{PERIODS}]+\\s*", " ", text)
+    return text
 
 
 def filter_hallucination(text):
@@ -134,12 +149,15 @@ def whisper_function(wav_queue):
                 # 同音異義語の確かめのために、Whisper の書き分けも渡す(補正が動くときだけ取る)
                 nbest = whisper_nbest(filepath) if llm_correct.will_correct() else []
                 fixed = llm_correct.correct(result, llm_vocab.get_current(), raw=filtered_text, nbest=nbest)
+                fixed = finish_text(fixed)  # 「。」を消す(設定でオンのとき)
                 paste.paste(fixed)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
                 print(f"入力: {fixed[:30]}...") # 最初の30文字を表示
                 undo_input.remember(fixed)  # 取り消しのキーで消せるように
                 history.add(fixed, raw=result)  # 入力した文章だけを残す(音声実行は残さない)
                 # 「候補を出す」の候補(同音異義語の確かめの「一か所だけ変えた文」と、補正する前の文)
-                candidates.set_last(fixed, result, homophone.take_alternatives())
+                # 候補も入力と同じ仕上げをする(入力された文と、窓の 1 番がずれないように)
+                candidates.set_last(fixed, finish_text(result),
+                                    [(finish_text(t), p, span) for t, p, span in homophone.take_alternatives()])
 
             # 処理済みファイルを削除
             os.remove(filepath)

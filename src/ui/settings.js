@@ -156,6 +156,8 @@ async function loadSettings() {
 
   // 入力モード
   showPushToTalk(s.values.push_to_talk);
+  bindToggle(document.getElementById("remove-periods"), document.getElementById("remove-periods-label"),
+    "remove_periods", s.values.remove_periods);
 
   // マイク
   bindSelect(document.getElementById("mic-select"), "audio_device_name",

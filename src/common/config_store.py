@@ -124,6 +124,8 @@ def defaults():
         "candidates_key": CANDIDATES_KEY_DEFAULT,
         # True なら音声入力のキーを押している間だけ録音する(False は押すたびにオン/オフ)
         "push_to_talk": False,
+        # True なら、入力する直前に「。」を消す(最後は消し、文と文の間は半角スペースにする)
+        "remove_periods": False,
         # 効果音(assets/sounds の wav のファイル名)。"" なら鳴らさない
         "sound_startup": "起動(デフォルト).wav",
         "sound_on": "開始(デフォルト).wav",
@@ -240,6 +242,7 @@ def normalize(raw):
         "mode_key": _fix_optional_text(merged["mode_key"], d["mode_key"]),
         "candidates_key": _fix_optional_text(merged["candidates_key"], d["candidates_key"]),
         "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
+        "remove_periods": _fix_bool(merged["remove_periods"], d["remove_periods"]),
         "sound_startup": _fix_optional_text(merged["sound_startup"], d["sound_startup"]),
         "sound_on": _fix_optional_text(merged["sound_on"], d["sound_on"]),
         "sound_off": _fix_optional_text(merged["sound_off"], d["sound_off"]),
