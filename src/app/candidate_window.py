@@ -32,8 +32,8 @@ from key_shortcut import MainStateManager
 state_manager = MainStateManager()
 
 POLL_MS = 30
-IDLE_CLOSE_SECONDS = 15
-MESSAGE_SECONDS = 1.5
+IDLE_CLOSE_SECONDS = 7
+MESSAGE_SECONDS = 3
 BOTTOM_MARGIN = 140   # 覚えていないとき、画面の下の端からどれだけ上に出すか
 
 # 窓が開いている間だけ借りるキー(key_shortcut.ACTIONS と合わせる)
