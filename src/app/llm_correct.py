@@ -9,6 +9,7 @@ LLM は llama.cpp の llama-server を裏で動かして、HTTP で呼ぶ。
 - stop(): 止める
 - correct(text): 直した文を返す。直せなかったとき(オフ、準備中、時間切れ、エラー、おかしな返事)は元の文を返す
     LLM の補正のあとに、同音異義語の確かめ(homophone.py)もする。辞書は立ち上げのときに一緒に読む
+    その後、句読点補正(punctuate.py。オンのとき)もする。MeCab は同音異義語の確かめのものを使う
     動いていた llama-server が落ちていたら、元の文を返しつつ裏で立ち上げ直す
     起動に失敗したとき(VRAM が足りない など)は、オン・オフを切り替えるまで立ち上げ直さない
 - status(): {"state": "off" / "starting" / "ready" / "error", "message": 失敗の理由(error のとき)}
@@ -37,6 +38,7 @@ import config
 import history
 import homophone
 import model_store
+import punctuate
 from edition import EDITION
 from paths import CUDA_DIRS, LLAMA_SERVER_EXE, TEMP_DIR
 
@@ -324,11 +326,16 @@ def will_correct():
     return _enabled() and config.get("language") != "en" and _state == "ready" and homophone.is_ready()
 
 
+def will_punctuate():
+    """今の入力で句読点補正が動くか(「候補を出す」の候補の句読点を、入力した文とそろえるかどうかにも使う)"""
+    return will_correct() and config.get("llm_punctuation")
+
+
 def correct(text, vocabulary=(), raw=None, nbest=()):
     """直した文を返す。直せなかったときは text をそのまま返す
     vocabulary: [(よみがな, 言葉), ...]
     raw: Whisper の文(音声辞書を通す前)。nbest: Whisper の書き分け(同音異義語の確かめで使う。無ければ空)
-    LLM の補正のあとに、同音異義語の確かめ(homophone.py)をする。待つ時間の上限は両方まとめて数える"""
+    LLM の補正のあとに、同音異義語の確かめ(homophone.py)と句読点補正(punctuate.py)をする。待つ時間の上限は全部まとめて数える"""
     received = time.monotonic()
     # 準備中・起動の失敗(VRAM が足りない など)のときは補正しない。失敗のあとは、オン・オフを切り替えるまで試さない
     if not text or not _enabled() or config.get("language") == "en" or _state != "ready":
@@ -366,4 +373,8 @@ def correct(text, vocabulary=(), raw=None, nbest=()):
                               [f"[{t.strftime('%H:%M:%S')}] {h}" for t, h in context], vocabulary, deadline)
     if checked != fixed:
         print(f"入力補正: 同音異義語の確かめまで {time.monotonic() - received:.2f} 秒")
+
+    # 句読点補正(オンのとき。時間切れ・エラーのときは、確かめたあとの文のまま)
+    if will_punctuate():
+        checked = punctuate.run(BASE_URL, checked, deadline)
     return checked

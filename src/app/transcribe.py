@@ -13,6 +13,7 @@ import llm_vocab
 import undo_input
 import model
 import paste
+import punctuate
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
@@ -149,15 +150,20 @@ def whisper_function(wav_queue):
                 # 同音異義語の確かめのために、Whisper の書き分けも渡す(補正が動くときだけ取る)
                 nbest = whisper_nbest(filepath) if llm_correct.will_correct() else []
                 fixed = llm_correct.correct(result, llm_vocab.get_current(), raw=filtered_text, nbest=nbest)
+                # 「候補を出す」の候補(同音異義語の確かめの「一か所だけ変えた文」と、補正する前の文)
+                # 句読点補正が動いたら、候補の句読点も入力する文とそろえる
+                alternatives = [(t, p) for t, p, _ in homophone.take_alternatives()]
+                before_correction = result
+                if llm_correct.will_punctuate():
+                    alternatives = [(punctuate.match(fixed, t), p) for t, p in alternatives]
+                    before_correction = punctuate.match(fixed, result)
                 fixed = finish_text(fixed)  # 「。」を消す(設定でオンのとき)
                 paste.paste(fixed)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
                 print(f"入力: {fixed[:30]}...") # 最初の30文字を表示
                 undo_input.remember(fixed)  # 取り消しのキーで消せるように
                 history.add(fixed, raw=result)  # 入力した文章だけを残す(音声実行は残さない)
-                # 「候補を出す」の候補(同音異義語の確かめの「一か所だけ変えた文」と、補正する前の文)
                 # 候補も入力と同じ仕上げをする(入力された文と、窓の 1 番がずれないように)
-                candidates.set_last(fixed, finish_text(result),
-                                    [(finish_text(t), p, span) for t, p, span in homophone.take_alternatives()])
+                candidates.set_last(fixed, finish_text(before_correction), [(finish_text(t), p) for t, p in alternatives])
 
             # 処理済みファイルを削除
             os.remove(filepath)

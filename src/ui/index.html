@@ -197,6 +197,17 @@
 
         <div class="card">
           <div class="card-text">
+            <label class="card-title" for="llm-punctuation">句読点補正</label>
+            <div class="card-desc">音声認識が付けた「、」「。」をいったん外して、LLM が付け直します。付いたり付かなかったりするのを防ぎます。「。」がいらないときは、設定タブの「「。」を消す」と一緒に使ってください</div>
+          </div>
+          <div class="card-control">
+            <span id="llm-punctuation-label" class="toggle-label"></span>
+            <input type="checkbox" id="llm-punctuation" class="toggle">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
             <label class="card-title" for="llm-timeout-range">待つ時間の上限</label>
             <div class="card-desc">この時間を過ぎても補正が終わらなければ、補正せずに入力します</div>
           </div>

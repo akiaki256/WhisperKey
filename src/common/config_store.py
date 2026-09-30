@@ -149,6 +149,8 @@ def defaults():
         # 入力補正(GPU版のみ)。音声認識の結果をローカル LLM で直す。直前の入力を入力履歴から取るので、履歴のオンが要る
         "llm_correction": False,
         "llm_timeout": 3.0,
+        # 句読点補正(入力補正がオンのときだけ動く)。Whisper の句読点をはがして、LLM に「、」「。」を付け直させる
+        "llm_punctuation": True,
     }
 
 
@@ -259,6 +261,7 @@ def normalize(raw):
         "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
         "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),
         "llm_timeout": _fix_llm_timeout(merged["llm_timeout"], d["llm_timeout"]),
+        "llm_punctuation": _fix_bool(merged["llm_punctuation"], d["llm_punctuation"]),
     }
 
 

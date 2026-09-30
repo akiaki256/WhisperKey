@@ -6,6 +6,7 @@
   1. 今の入力
   2. 同音異義語の確かめで確かめた場所を、一か所だけ変えた文(その言葉の確率が高い順。homophone.take_alternatives)
   3. 補正する前の文(音声辞書を通したあと、LLM の補正の前。今の入力と違うときだけ)
+  句読点補正が動いたときは、2・3 の句読点も今の入力とそろえてある(transcribe.py)
 
 - set_last(text, before_correction, alternatives): 入力したあとに呼ぶ
 - forget(): 取り消し・音声実行のあとに呼ぶ(もう入れ替えられないので)
@@ -41,14 +42,16 @@ def _spans(base, text):
 
 
 def set_last(text, before_correction, alternatives):
-    """text: 入力した文。before_correction: LLM の補正の前の文。alternatives: homophone.take_alternatives() の中身"""
+    """text: 入力した文。before_correction: LLM の補正の前の文
+    alternatives: 一か所だけ変えた文と確率 [(文, 確率), ...](homophone.take_alternatives() から)
+    違うところは text と比べて出し直す(句読点補正や「。」を消す仕上げで、位置がずれるため)"""
     global _items, _current
     items = [{"text": text, "spans": [], "note": ""}]
     seen = {text}
-    for alt, p, (start, length) in alternatives:
+    for alt, p in alternatives:
         if alt not in seen:
             seen.add(alt)
-            items.append({"text": alt, "spans": [(start, length)], "note": f"{p:.0%}"})
+            items.append({"text": alt, "spans": _spans(text, alt), "note": f"{p:.0%}"})
     if before_correction and before_correction not in seen:
         items.append({"text": before_correction, "spans": _spans(text, before_correction), "note": "補正前"})
     global _version
