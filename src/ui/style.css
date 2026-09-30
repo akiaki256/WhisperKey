@@ -443,6 +443,48 @@ button.subtle .icon {
   padding: 6px 0;
 }
 
+/* 設定タブのグループ(押すと広がり、中に設定のカードが並ぶ。Windows 11 の設定画面のように)
+   中のカードは枠と背景をなくし、上の線で区切る。左はアイコンの幅ぶん下げて、見出しの文字とそろえる */
+.card + .expander.group,
+h2 + .card + .expander.group {
+  margin-top: 20px;   /* 入力モードのカードとのあいだ */
+}
+
+.expander.group + .expander.group {
+  margin-top: 0;
+}
+
+.group-body {
+  border-top: 1px solid var(--card-stroke);
+}
+
+.group-body h3 {
+  margin: 0;
+  padding: 14px 16px 6px 56px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.group-body .section-desc {
+  margin: 0;
+  padding: 0 16px 8px 56px;
+}
+
+.group-body .card {
+  margin: 0;
+  padding-left: 56px;
+  border: none;
+  border-top: 1px solid var(--card-stroke);
+  border-radius: 0;
+  background: transparent;
+}
+
+.group-body h3 + .card,
+.group-body .section-desc + .card,
+.group-body > .card:first-child {
+  border-top: none;
+}
+
 .example {
   color: var(--text-secondary);
   font-size: 12px;

@@ -271,7 +271,19 @@
           </div>
         </div>
 
-        <h2>録音</h2>
+        <!-- ここから下は、押すと広がるグループ(Windows 11 の設定画面のように)。中の項目は線で区切って並べる -->
+        <details class="card expander group">
+          <summary>
+            <span class="icon">&#xE767;</span>
+            <span class="card-text">
+              <span class="card-title">サウンド</span>
+              <span class="card-desc">マイク・音量しきい値・無音時間・効果音</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="group-body">
+
+        <h3>録音</h3>
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="mic-select">マイク</label>
@@ -307,19 +319,7 @@
           </div>
         </div>
 
-        <h2>貼り付け</h2>
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="clipboard-private">Win + V の履歴に残さない</label>
-            <div class="card-desc">音声入力の文字を、クリップボードの履歴やほかのパソコンへの同期に残しません</div>
-          </div>
-          <div class="card-control">
-            <span id="clipboard-private-label" class="toggle-label"></span>
-            <input type="checkbox" id="clipboard-private" class="toggle">
-          </div>
-        </div>
-
-        <h2>効果音</h2>
+        <h3>効果音</h3>
         <p class="section-desc">インストール先の assets\sounds に wav ファイルを入れると、ここで選べるようになります</p>
         <!-- settings.js が選択肢(「なし」+ assets/sounds の wav)を入れる。▶ で試し聞き -->
         <div class="card">
@@ -354,7 +354,20 @@
           </div>
         </div>
 
-        <h2>外観</h2>
+          </div>
+        </details>
+
+        <details class="card expander group">
+          <summary>
+            <span class="icon">&#xE771;</span>
+            <span class="card-text">
+              <span class="card-title">外観</span>
+              <span class="card-desc">インジケーター・テーマ・窓の位置</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="group-body">
+
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="indicator-select">インジケーター</label>
@@ -375,6 +388,45 @@
           </div>
           <div class="card-control"><button id="btn-reset-positions">元に戻す</button></div>
         </div>
+
+          </div>
+        </details>
+
+        <details class="card expander group">
+          <summary>
+            <span class="icon">&#xE770;</span>
+            <span class="card-text">
+              <span class="card-title">Windows との連携</span>
+              <span class="card-desc">クリップボードの履歴・Windows の起動時に立ち上げる</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="group-body">
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="clipboard-private">Win + V の履歴に残さない</label>
+            <div class="card-desc">音声入力の文字を、クリップボードの履歴やほかのパソコンへの同期に残しません</div>
+          </div>
+          <div class="card-control">
+            <span id="clipboard-private-label" class="toggle-label"></span>
+            <input type="checkbox" id="clipboard-private" class="toggle">
+          </div>
+        </div>
+        <!-- 本当の値は Windows の一覧(レジストリの Run)。インストーラーの「Windows起動時に自動的に起動する」と同じもの -->
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="autostart">Windows の起動時に立ち上げる</label>
+            <div class="card-desc" id="autostart-desc">パソコンを起動してサインインしたら、WhisperKey も自動で立ち上がります</div>
+          </div>
+          <div class="card-control">
+            <span id="autostart-label" class="toggle-label"></span>
+            <input type="checkbox" id="autostart" class="toggle">
+          </div>
+        </div>
+
+          </div>
+        </details>
 
       </section>
     </main>
