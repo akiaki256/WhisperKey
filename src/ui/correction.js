@@ -4,7 +4,8 @@
 // - 待つ時間の上限: 1〜20 秒(0.5 秒刻み)。過ぎたら補正せずに入力する。次の入力から効く
 // - モデルのカード: ダウンロード・削除の動きはモデルタブと同じ(model_tab.js の showModelState)
 // - 準備中・準備完了・失敗は、Python から onCorrectionStatus で届く
-// - よく使う言葉: 一つのカード = 言葉とよみがな。入力欄から離れたとき・消したときに、まるごと保存する(すぐ効く)
+// - よく使う言葉: 押すと広がるカードの中に並べる。閉じていても、説明に登録の数を出す
+//   一つのカード = 言葉とよみがな。入力欄から離れたとき・消したときに、まるごと保存する(すぐ効く)
 //   よみがなが空の言葉は LLM に渡さないので、枠を赤くして知らせる
 
 const correctionToggle = document.getElementById("llm-correction");
@@ -108,6 +109,7 @@ function collectVocabRows() {
 async function saveVocab() {
   const result = await window.pywebview.api.save_vocab(collectVocabRows());
   showError(result.error);
+  showVocabSummary();
 }
 
 function renderVocab(rows) {
@@ -115,6 +117,16 @@ function renderVocab(rows) {
   for (const row of rows) {
     vocabList.append(createVocabCard(row));
   }
+  showVocabSummary();
+}
+
+// 閉じていても分かるように、カードの説明に登録の数を出す
+function showVocabSummary() {
+  const rows = collectVocabRows().filter((row) => row.word.trim() !== "");
+  const missing = rows.filter((row) => row.reading.trim() === "").length;
+  document.getElementById("vocab-summary").textContent = rows.length === 0
+    ? "LLM が補正するときの判断材料になる言葉とよみがな(まだ登録していません)"
+    : `${rows.length} 件を登録${missing > 0 ? `(よみがなが空で使われないもの: ${missing} 件)` : ""}`;
 }
 
 let vocabNoticeTimer = null;

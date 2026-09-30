@@ -378,6 +378,14 @@ h2 {
   margin-bottom: 8px;
 }
 
+/* 入力補正タブの「よく使う言葉を追加学習」(押すと広がるカード)の中身。言葉のカードを並べる */
+.vocab-body {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 12px 48px;   /* 左はアイコンの幅ぶん下げて、見出しの文字とそろえる */
+  border-top: 1px solid var(--card-stroke);
+}
+
 /* 文字だけの控えめなボタン(「+ 変換前を追加」) */
 button.subtle {
   align-self: flex-start;
