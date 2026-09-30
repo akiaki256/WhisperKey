@@ -7,6 +7,8 @@ LLM は、それだけ見ると正しい言葉になる同音異義語(仕様 / 
 - 候補を出す(プログラム)
     1. 辞書: MeCab(fugashi + IPA 辞書)で単語に切り、読みが同じ言葉を索引(homophone_dict.json)から引く
        名詞、動詞・形容詞(同じ活用の形)、数字と助数詞(5時 → 誤字、産業 → 3行)。漢字を含む言葉だけ、同じ文字数のものだけ
+       名詞は、聞き分けにくい音(NEAR_PAIRS)を一か所だけ入れ替えた発音の言葉も候補にする(近い読み。楽天 → 濁点、太陽 → 対応)
+       発音で比べるので、伸ばす音はそろう(対応 タイオー、太陽 タイヨー)。v5_LLM補正の実験/結果/近い読み/
     2. Whisper: n-best(2〜5 位の書き分け)と今の文を単語の並びで比べ、違うところの読みが同じときだけ候補にする
        (読みの違う聞き間違い「歯医者 → 会社」は入れない)。それまでに直したところ(Whisper の文と違うところ)と、
        よく使う言葉には触らない(LLM の補正が直した「ヒライ」を n-best の「平井」に戻さないため)
@@ -35,6 +37,9 @@ from paths import HOMOPHONE_DIR
 
 THRESHOLD = 0.8        # 元の言葉以外が、この確率以上で勝ったら差し替える
 MAX_CANDIDATES = 4     # 一か所に並べる候補の数(元の言葉のほかに)
+NEAR_CANDIDATES = 3    # 名詞で、近い読みの候補に取っておく数。同じ読みと近い読みで余った枠は、もう片方が使う(合わせて 7 つまで)
+# 聞き分けにくい音の組(発音のカタカナ)。どちら向きにも、一つの言葉につき一か所だけ入れ替える
+NEAR_PAIRS = [("オ", "ウ"), ("ヨ", "オ"), ("ダ", "ラ"), ("リ", "ディ")]
 ALT_MIN_PROB = 0.05    # 「候補を出す」の窓に並べる、一か所だけ変えた文の確率の下限
 LETTERS = "ABCDEFGH"
 TARGET_POS2 = {"一般", "サ変接続", "形容動詞語幹", "副詞可能", "ナイ形容詞語幹"}
@@ -167,6 +172,10 @@ def dictionary_slots(text):
             counter_alts = _counter_alts(feat[7], len(surface))[:1]
             if counter_alts:   # 数字と助数詞の書き方があるときだけ、名詞の候補を 1 つ減らして足す(産業 → 3行)
                 alts = alts[:MAX_CANDIDATES - 1] + counter_alts
+            near = _near_alts(surface, feat[8] if len(feat) > 8 else "*", alts)
+            if near:
+                out.append((start, surface, _share(alts, near)))
+                continue
         elif feat[0] in ("動詞", "形容詞") and feat[1] == "自立":
             ctype, cform, base = feat[4], feat[5], feat[6]
             reading = _base_reading.get((base, ctype))
@@ -179,6 +188,42 @@ def dictionary_slots(text):
         if alts:
             out.append((start, surface, alts[:MAX_CANDIDATES]))
     return out
+
+
+def _near_variants(pron):
+    """発音の中の聞き分けにくい音を、一か所だけ入れ替えた発音"""
+    out = set()
+    for a, b in NEAR_PAIRS + [(b, a) for a, b in NEAR_PAIRS]:
+        i = pron.find(a)
+        while i >= 0:
+            out.add(pron[:i] + b + pron[i + len(a):])
+            i = pron.find(a, i + 1)
+    out.discard(pron)
+    return out
+
+
+def _near_alts(surface, pron, exclude):
+    """近い読みの名詞(同じ文字数、よく使う順)。exclude(同じ読みの候補)と元の言葉は入れない"""
+    if pron == "*" or "nouns_by_pron" not in _dict:
+        return []
+    found = []
+    for v in _near_variants(pron):
+        found += [(i, s) for i, s in enumerate(_dict["nouns_by_pron"].get(v, []))
+                  if s != surface and len(s) == len(surface) and s not in exclude]
+    out = []
+    for _, s in sorted(found):   # それぞれの発音の中でよく使う順(発音をまたぐ並びは、その中の順位で)
+        if s not in out:
+            out.append(s)
+    return out
+
+
+def _share(same, near):
+    """同じ読みの候補 MAX_CANDIDATES と、近い読みの候補 NEAR_CANDIDATES を取り、余った枠はもう片方に回す
+    並びは同じ読み → 近い読み"""
+    total = MAX_CANDIDATES + NEAR_CANDIDATES
+    n_same = min(len(same), MAX_CANDIDATES + max(0, NEAR_CANDIDATES - len(near)))
+    n_near = min(len(near), total - n_same)
+    return same[:n_same] + near[:n_near]
 
 
 def _reading(surface, feat):
