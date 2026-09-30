@@ -1,7 +1,7 @@
 // 入力補正タブ(GPU版だけ。CPU版ではタブごと隠す)
 // - スイッチ: オンにできるのは、入力履歴がオンで、モデルがあるとき(だめなら Python がエラーを返す)
 // - 句読点補正: 入力補正がオンのときだけ動く。次の入力から効く
-// - 待つ時間の上限: 1〜20 秒(0.5 秒刻み)。過ぎたら補正せずに入力する。次の入力から効く
+// - 待つ時間の上限: 入力補正(補正と同音異義語の確かめ)と句読点補正で別々。どちらも 1〜20 秒(0.5 秒刻み)。次の入力から効く
 // - モデルのカード: ダウンロード・削除の動きはモデルタブと同じ(model_tab.js の showModelState)
 // - 準備中・準備完了・失敗は、Python から onCorrectionStatus で届く
 // - よく使う言葉: 押すと広がるカードの中に並べる。閉じていても、説明に登録の数を出す
@@ -184,6 +184,17 @@ async function loadCorrection() {
     (v) => Number(v).toFixed(1),
   );
   showTimeout(s.values.llm_timeout);
+
+  // 句読点補正を待つ時間の上限(範囲は入力補正のものと同じ)
+  const punctuationRange = document.getElementById("llm-punctuation-timeout-range");
+  punctuationRange.min = s.llm_timeout.min;
+  punctuationRange.max = s.llm_timeout.max;
+  punctuationRange.step = s.llm_timeout.step;
+  const showPunctuationTimeout = bindSlider(
+    "llm_punctuation_timeout", punctuationRange, document.getElementById("llm-punctuation-timeout-number"),
+    (v) => Number(v).toFixed(1),
+  );
+  showPunctuationTimeout(s.values.llm_punctuation_timeout);
 
   const card = document.getElementById("llm-model-card");
   card.dataset.model = s.llm_model.value;

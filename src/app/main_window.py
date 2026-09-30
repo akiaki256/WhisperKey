@@ -58,7 +58,7 @@ EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
     "history_enabled", "push_to_talk", "remove_periods", "remove_commas", "indicator_mode",
     "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
-    "llm_correction", "llm_timeout", "llm_punctuation",
+    "llm_correction", "llm_timeout", "llm_punctuation", "llm_punctuation_timeout",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる

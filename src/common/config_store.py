@@ -153,6 +153,7 @@ def defaults():
         "llm_timeout": 3.0,
         # 句読点補正(入力補正がオンのときだけ動く)。Whisper の句読点をはがして、LLM に「、」「。」を付け直させる
         "llm_punctuation": True,
+        "llm_punctuation_timeout": 2.0,
     }
 
 
@@ -265,6 +266,7 @@ def normalize(raw):
         "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),
         "llm_timeout": _fix_llm_timeout(merged["llm_timeout"], d["llm_timeout"]),
         "llm_punctuation": _fix_bool(merged["llm_punctuation"], d["llm_punctuation"]),
+        "llm_punctuation_timeout": _fix_llm_timeout(merged["llm_punctuation_timeout"], d["llm_punctuation_timeout"]),
     }
 
 

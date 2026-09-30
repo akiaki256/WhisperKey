@@ -46,6 +46,7 @@ PORT = 39281
 BASE_URL = f"http://127.0.0.1:{PORT}"   # localhost だと Windows で毎回 2 秒待たされる
 
 # 時間切れは config の llm_timeout(入力補正タブで 1〜20 秒、初期値 3 秒)。テキストを受け取ってから数える
+# 句読点補正は別に llm_punctuation_timeout(1〜20 秒、初期値 2 秒)。句読点補正を始めてから数える
 STARTUP_TIMEOUT_SECONDS = 180  # 初めての起動は、GPU 向けの処理の準備で 60 秒以上かかることがある
 CONTEXT_SECONDS = 60         # 直前の入力として渡すのは、この秒数以内の
 CONTEXT_MAX = 5              # この件数まで
@@ -335,7 +336,19 @@ def correct(text, vocabulary=(), raw=None, nbest=()):
     """直した文を返す。直せなかったときは text をそのまま返す
     vocabulary: [(よみがな, 言葉), ...]
     raw: Whisper の文(音声辞書を通す前)。nbest: Whisper の書き分け(同音異義語の確かめで使う。無ければ空)
-    LLM の補正のあとに、同音異義語の確かめ(homophone.py)と句読点補正(punctuate.py)をする。待つ時間の上限は全部まとめて数える"""
+    LLM の補正 → 同音異義語の確かめ(homophone.py)→ 句読点補正(punctuate.py。オンのとき)
+    待つ時間の上限は二つに分けて数える
+      補正と同音異義語の確かめ: llm_timeout(受け取ってから)
+      句読点補正: llm_punctuation_timeout(句読点補正を始めてから)。補正が時間切れでも、句読点補正はする"""
+    checked = _correct(text, vocabulary, raw, nbest)
+    # 句読点補正(オンのとき。時間切れ・エラーのときは、確かめたあとの文のまま)
+    if will_punctuate() and _proc is not None and _proc.poll() is None:
+        checked = punctuate.run(BASE_URL, checked, time.monotonic() + config.get("llm_punctuation_timeout"))
+    return checked
+
+
+def _correct(text, vocabulary, raw, nbest):
+    """LLM の補正と同音異義語の確かめ。直せなかったときは text をそのまま返す"""
     received = time.monotonic()
     # 準備中・起動の失敗(VRAM が足りない など)のときは補正しない。失敗のあとは、オン・オフを切り替えるまで試さない
     if not text or not _enabled() or config.get("language") == "en" or _state != "ready":
@@ -373,8 +386,4 @@ def correct(text, vocabulary=(), raw=None, nbest=()):
                               [f"[{t.strftime('%H:%M:%S')}] {h}" for t, h in context], vocabulary, deadline)
     if checked != fixed:
         print(f"入力補正: 同音異義語の確かめまで {time.monotonic() - received:.2f} 秒")
-
-    # 句読点補正(オンのとき。時間切れ・エラーのときは、確かめたあとの文のまま)
-    if will_punctuate():
-        checked = punctuate.run(BASE_URL, checked, deadline)
     return checked

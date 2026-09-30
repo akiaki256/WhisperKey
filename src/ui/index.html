@@ -197,12 +197,34 @@
 
         <div class="card">
           <div class="card-text">
+            <label class="card-title" for="llm-timeout-range">入力補正を待つ時間の上限</label>
+            <div class="card-desc">補正と同音異義語の確かめを、この時間まで待ちます。過ぎたら、そこまでに直せた分で入力します(まったく直せていなければ、補正せずに入力します)</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="llm-timeout-range">
+            <input type="number" id="llm-timeout-number"><span class="unit">秒</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
             <label class="card-title" for="llm-punctuation">句読点補正</label>
             <div class="card-desc">音声認識が付けた「、」「。」をいったん外して、LLM が付け直します。付いたり付かなかったりするのを防ぎます。付け直す時間の分だけ、入力されるまでがさらに少し遅くなります。「。」や「、」がいらないときは、設定タブの「「。」を消す」「「、」を消す」と一緒に使ってください</div>
           </div>
           <div class="card-control">
             <span id="llm-punctuation-label" class="toggle-label"></span>
             <input type="checkbox" id="llm-punctuation" class="toggle">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-punctuation-timeout-range">句読点補正を待つ時間の上限</label>
+            <div class="card-desc">句読点の付け直しを、この時間まで待ちます。過ぎたら、付け直さずに入力します</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="llm-punctuation-timeout-range">
+            <input type="number" id="llm-punctuation-timeout-number"><span class="unit">秒</span>
           </div>
         </div>
 
@@ -226,17 +248,6 @@
             <div id="vocab-list"></div>
           </div>
         </details>
-
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="llm-timeout-range">待つ時間の上限</label>
-            <div class="card-desc">この時間を過ぎても補正が終わらなければ、補正せずに入力します</div>
-          </div>
-          <div class="card-control">
-            <input type="range" id="llm-timeout-range">
-            <input type="number" id="llm-timeout-number"><span class="unit">秒</span>
-          </div>
-        </div>
 
         <!-- LLM のモデル。右側(ダウンロード・削除)の動きはモデルタブと同じ(model_tab.js の showModelState) -->
         <div class="card" id="llm-model-card">
