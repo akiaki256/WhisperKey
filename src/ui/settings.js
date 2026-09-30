@@ -165,8 +165,7 @@ async function loadSettings() {
   bindSelect(document.getElementById("mic-select"), "audio_device_name",
     micChoices(s.mics, s.values.audio_device_name), s.values.audio_device_name);
 
-  // 言語・モデル・テーマ
-  bindSelect(document.getElementById("language-select"), "language", s.languages, s.values.language);
+  // モデル・テーマ
   buildModelList(document.getElementById("model-list"), s.models, s.values.model_size);
   bindSelect(document.getElementById("theme-select"), "theme", s.themes, s.values.theme, applyTheme);
   bindSelect(document.getElementById("indicator-select"), "indicator_mode", s.indicator_modes, s.values.indicator_mode);

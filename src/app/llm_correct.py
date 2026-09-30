@@ -324,7 +324,7 @@ def _guard(original, answer, truncated):
 
 def will_correct():
     """今の入力で補正と同音異義語の確かめが動くか(Whisper の書き分けを取るかどうかを、文字起こしの係が決めるため)"""
-    return _enabled() and config.get("language") != "en" and _state == "ready" and homophone.is_ready()
+    return _enabled() and _state == "ready" and homophone.is_ready()
 
 
 def will_punctuate():
@@ -351,7 +351,7 @@ def _correct(text, vocabulary, raw, nbest):
     """LLM の補正と同音異義語の確かめ。直せなかったときは text をそのまま返す"""
     received = time.monotonic()
     # 準備中・起動の失敗(VRAM が足りない など)のときは補正しない。失敗のあとは、オン・オフを切り替えるまで試さない
-    if not text or not _enabled() or config.get("language") == "en" or _state != "ready":
+    if not text or not _enabled() or _state != "ready":
         return text
     if _proc is None or _proc.poll() is not None:
         _restart()

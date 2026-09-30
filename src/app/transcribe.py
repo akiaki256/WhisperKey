@@ -4,6 +4,7 @@ from datetime import datetime
 
 import candidates
 import config
+import config_store
 import convert_dict
 import command
 import history
@@ -18,6 +19,8 @@ from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
 
+
+LANGUAGE = config_store.LANGUAGE   # 日本語だけ
 
 # ハルシネーションフレーズリスト
 HALLUCINATION_PHRASES = [
@@ -50,7 +53,7 @@ def whisper_nbest(filepath):
         fe = whisper.feature_extractor
         segment = pad_or_trim(fe(decode_audio(filepath, sampling_rate=fe.sampling_rate))[:, : fe.nb_max_frames])
         tokenizer = Tokenizer(whisper.hf_tokenizer, whisper.model.is_multilingual, task="transcribe",
-                              language=config.get("language"))
+                              language=LANGUAGE)
         prompt = whisper.get_prompt(tokenizer, [], without_timestamps=True)
         result = whisper.model.generate(whisper.encode(segment), [prompt], beam_size=NBEST_BEAM,
                                         num_hypotheses=NBEST_BEAM, max_length=224,
@@ -121,7 +124,7 @@ def whisper_function(wav_queue):
             print(f"処理開始: {filepath}")
 
             segments, info = model.get_model().transcribe(filepath,
-                                                language=config.get("language"),
+                                                language=LANGUAGE,
                                                 beam_size=1,           # デフォルト5→1で高速化
                                                 best_of=1,            # デフォルト5→1で高速化  
                                                 temperature=0,        # 安定した出力

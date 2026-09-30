@@ -55,7 +55,7 @@ if EDITION == "gpu":
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {
-    "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
+    "volume_threshold", "silence_duration", "audio_device_name", "model_size", "theme",
     "history_enabled", "push_to_talk", "remove_periods", "remove_commas", "indicator_mode",
     "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
     "llm_correction", "llm_timeout", "llm_punctuation", "llm_punctuation_timeout",
@@ -205,7 +205,6 @@ class Api:
                 "max": config_store.SILENCE_DURATION_MAX,
                 "step": config_store.SILENCE_DURATION_STEP,
             },
-            "languages": config_store.LANGUAGE_CHOICES,
             "models": _model_list(),
             "themes": config_store.THEME_CHOICES,
             "indicator_modes": config_store.INDICATOR_MODE_CHOICES,

@@ -66,11 +66,9 @@ MODEL_CHOICES_GPU = [
 MODEL_DEFAULT_CPU = "base"
 MODEL_DEFAULT_GPU = "medium"
 
-LANGUAGE_CHOICES = [
-    ("ja", "日本語"),
-    ("en", "English"),
-]
-LANGUAGE_DEFAULT = "ja"
+# 認識する言語は日本語だけ(v5 から。入力補正・同音異義語の確かめ・句読点補正が日本語を前提にしているため)
+# 前の版の config にある "language" は、読み込むときに捨てる
+LANGUAGE = "ja"
 
 SHORTCUT_DEFAULT = "f9"
 UNDO_KEY_DEFAULT = "f10"  # 直前の入力を取り消す。"" なら割り当てない
@@ -136,7 +134,6 @@ def defaults():
         "sound_padding": True,
         # 貼り付けた音声入力の文字を、Win + V の履歴・クラウド同期に残さない
         "clipboard_private": True,
-        "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
         # インジケーターの表示方法と位置(画面の左上からのピクセル。丸と操作パネルで共通)。つまんで動かすと保存される
         "indicator_mode": INDICATOR_MODE_DEFAULT,
@@ -254,7 +251,6 @@ def normalize(raw):
         "sound_off": _fix_optional_text(merged["sound_off"], d["sound_off"]),
         "sound_padding": _fix_bool(merged["sound_padding"], d["sound_padding"]),
         "clipboard_private": _fix_bool(merged["clipboard_private"], d["clipboard_private"]),
-        "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_mode": _fix_choice(merged["indicator_mode"], INDICATOR_MODE_CHOICES, d["indicator_mode"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
