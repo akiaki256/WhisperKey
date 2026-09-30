@@ -11,6 +11,7 @@
 """
 
 import csv
+import threading
 import webbrowser
 import os
 
@@ -79,14 +80,20 @@ def execute_command(original_text, command_dict):
     for keyword, data in command_dict.items():
         if keyword == cleaned_text:
 
-            if data['tag'] == 'url':
-                webbrowser.open(data['path'])
-                print(f"URL開く: {keyword} → {data['path']}")
+            # 開けなくても(ファイルが無い など)文字起こしを止めない。知らせの窓は別のスレッドで出す(閉じるまで次の入力を待たせない)
+            try:
+                if data['tag'] == 'url':
+                    webbrowser.open(data['path'])
+                    print(f"URL開く: {keyword} → {data['path']}")
 
-            elif data['tag'] == 'file':
-                os.startfile(data['path'])
-                print(f"ファイルを開く: {keyword} → {data['path']}")
+                elif data['tag'] == 'file':
+                    os.startfile(data['path'])
+                    print(f"ファイルを開く: {keyword} → {data['path']}")
+            except OSError as e:
+                print(f"音声実行: 開けませんでした: {keyword} → {data['path']}: {e}")
+                threading.Thread(target=show_error, daemon=True, args=(
+                    "音声実行", f"「{keyword}」の開くものを開けませんでした。\n{data['path']}\n\n{e}")).start()
 
-            return True
+            return True   # 合言葉には一致したので、入力はしない
     print(f"コマンド該当なし: {original_text}")
     return False

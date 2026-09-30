@@ -1,5 +1,6 @@
 import os
 import re
+import traceback
 from datetime import datetime
 
 import candidates
@@ -175,6 +176,10 @@ def whisper_function(wav_queue):
             # 処理済みファイルを削除
             os.remove(filepath)
             print(f"削除: {filepath}")
+        except Exception:
+            # 思わぬエラーでも、この係は止めない(止まると、次からの入力が全部たまったままになる)
+            print("文字起こし: エラー(この入力は飛ばして続けます)")
+            traceback.print_exc()
         finally:
             # 途中でエラーが起きても、残りの数は必ず減らす(黄色が消えなくなるのを防ぐ)
             state_manager.finish_pending()
