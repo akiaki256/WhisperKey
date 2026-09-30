@@ -460,15 +460,6 @@ button.subtle .icon {
 
 /* 設定タブのグループ(押すと広がり、中に設定のカードが並ぶ。Windows 11 の設定画面のように)
    中のカードは枠と背景をなくし、上の線で区切る。左はアイコンの幅ぶん下げて、見出しの文字とそろえる */
-.card + .expander.group,
-h2 + .card + .expander.group {
-  margin-top: 20px;   /* 入力モードのカードとのあいだ */
-}
-
-.expander.group + .expander.group {
-  margin-top: 0;
-}
-
 .group-body {
   border-top: 1px solid var(--card-stroke);
 }
