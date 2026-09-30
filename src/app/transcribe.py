@@ -64,12 +64,16 @@ def whisper_nbest(filepath):
 
 
 PERIODS = "。．"   # 「。」を消すときに消すもの
+COMMAS = "、，"    # 「、」を消すときに消すもの
 CLOSING_BRACKETS = "」』）)］]】"   # この前の「。」は、スペースにせずに消すだけ(「はい。」→「はい」)
 
 
 def finish_text(text):
-    """入力する直前の仕上げ。設定で「「。」を消す」がオンなら、
-    文の最後の「。」は消して、文と文の間の「。」は半角スペースにする(「はい。行きます。」→「はい 行きます」)"""
+    """入力する直前の仕上げ
+    設定で「「、」を消す」がオンなら、「、」を全部消す(スペースにはしない)
+    設定で「「。」を消す」がオンなら、文の最後の「。」は消して、文と文の間の「。」は半角スペースにする(「はい。行きます。」→「はい 行きます」)"""
+    if config.get("remove_commas"):
+        text = re.sub(f"[{COMMAS}]", "", text)
     if config.get("remove_periods"):
         text = text.rstrip().rstrip(PERIODS + " 　").rstrip()
         text = re.sub(f"[{PERIODS}]+\\s*(?=[{re.escape(CLOSING_BRACKETS)}])", "", text)

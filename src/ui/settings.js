@@ -158,6 +158,8 @@ async function loadSettings() {
   showPushToTalk(s.values.push_to_talk);
   bindToggle(document.getElementById("remove-periods"), document.getElementById("remove-periods-label"),
     "remove_periods", s.values.remove_periods);
+  bindToggle(document.getElementById("remove-commas"), document.getElementById("remove-commas-label"),
+    "remove_commas", s.values.remove_commas);
 
   // マイク
   bindSelect(document.getElementById("mic-select"), "audio_device_name",

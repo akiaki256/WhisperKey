@@ -56,7 +56,7 @@ if EDITION == "gpu":
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
-    "history_enabled", "push_to_talk", "remove_periods", "indicator_mode",
+    "history_enabled", "push_to_talk", "remove_periods", "remove_commas", "indicator_mode",
     "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
     "llm_correction", "llm_timeout", "llm_punctuation",
 }
