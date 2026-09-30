@@ -113,7 +113,7 @@ def defaults():
     """初期値の一覧"""
     return {
         "volume_threshold": 500,
-        "silence_duration": 1.3,
+        "silence_duration": 0.8,
         "audio_device_index": None,
         "audio_device_name": DEFAULT_DEVICE_LABEL,
         "audio_device_sample_rate": SAMPLE_RATE,
