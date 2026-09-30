@@ -167,9 +167,10 @@ async function loadSettings() {
   bindToggle(document.getElementById("sound-padding"), document.getElementById("sound-padding-label"),
     "sound_padding", s.values.sound_padding);
 
-  // 貼り付け
+  // Windows との連携
   bindToggle(document.getElementById("clipboard-private"), document.getElementById("clipboard-private-label"),
     "clipboard_private", s.values.clipboard_private);
+  showAutostart(s.autostart);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
 
   // 選ばれているモデルが手元に無ければ、モデルタブを開いて知らせる(ショートカットのエラーより優先)
@@ -221,6 +222,25 @@ function showPushToTalk(enabled) {
 document.getElementById("push-to-talk").addEventListener("change", async (e) => {
   const value = await saveSetting("push_to_talk", e.target.checked);
   if (value !== null) showPushToTalk(value);
+});
+
+// Windows の起動時に立ち上げる
+// 本当の値は Windows の一覧(レジストリ)にあり、config には無いので、saveSetting ではなく set_autostart で変える
+// 開発中(start.bat)は使えないので、スイッチを押せなくする
+function showAutostart(state) {
+  const toggle = document.getElementById("autostart");
+  toggle.checked = state.enabled;
+  toggle.disabled = !state.available;
+  document.getElementById("autostart-label").textContent = state.enabled ? "オン" : "オフ";
+  if (!state.available) {
+    document.getElementById("autostart-desc").textContent = "開発中(start.bat)では使えません。インストールした WhisperKey で設定してください";
+  }
+}
+
+document.getElementById("autostart").addEventListener("change", async (e) => {
+  const result = await window.pywebview.api.set_autostart(e.target.checked);
+  showError(result.error);
+  showAutostart({ available: !e.target.disabled, enabled: result.value });
 });
 
 document.getElementById("btn-restart").addEventListener("click", () => {

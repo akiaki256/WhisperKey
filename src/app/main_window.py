@@ -20,6 +20,7 @@ import webview
 import audio
 import audio_devices
 import command
+import autostart
 import config
 import config_store
 import convert_dict
@@ -218,7 +219,19 @@ class Api:
             },
             "correction_status": llm_correct.status(),
             "restart_needed": _restart_needed(values),
+            # Windows の起動時に立ち上げる(本当の値はレジストリ。開発中は使えない)
+            "autostart": {"available": autostart.available(), "enabled": autostart.is_enabled()},
         }
+
+    def set_autostart(self, on):
+        """Windows の起動時に立ち上げるかを変える。{"value": 今の状態} か {"error": 理由}"""
+        if not autostart.available():
+            return {"error": "開発中(start.bat)では使えません", "value": autostart.is_enabled()}
+        try:
+            autostart.set_enabled(bool(on))
+        except OSError as e:
+            return {"error": f"Windows の設定を変えられませんでした: {e}", "value": autostart.is_enabled()}
+        return {"value": autostart.is_enabled()}
 
     def get_level(self):
         """今の音量(しきい値と同じ物差し)。設定タブを開いているあいだ、画面が 50ms ごとに取りに来る"""
