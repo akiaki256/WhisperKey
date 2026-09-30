@@ -11,6 +11,8 @@ LLM は、それだけ見ると正しい言葉になる同音異義語(仕様 / 
        発音から伸ばす音「ー」を抜いて比べる。入れ替えのついでに、伸ばす音の長さの違いも許す
        (要望 ヨーボー → ヨボ、応募 オーボ → オボ)。長さだけが違う言葉(利口 / 利己)は候補にしない
        v5_LLM補正の実験/結果/近い読み/ と 近い読み_伸ばす音を無視/
+       名詞・接頭詞の直後に名詞が続くときは、同じ読みの接頭詞も候補の先頭に足す(科学習 → 過学習、最起動 → 再起動)
+       「過」は接頭詞で、名詞の辞書には無いため。v5_LLM補正の実験/結果/接頭詞/
     2. Whisper: n-best(2〜5 位の書き分け)と今の文を単語の並びで比べ、違うところの読みが同じときだけ候補にする
        (読みの違う聞き間違い「歯医者 → 会社」は入れない)。それまでに直したところ(Whisper の文と違うところ)と、
        よく使う言葉には触らない(LLM の補正が直した「ヒライ」を n-best の「平井」に戻さないため)
@@ -167,10 +169,13 @@ def dictionary_slots(text):
             continue
         if not KANJI.search(surface) or len(feat) < 8:
             continue
+        # 同じ読みの接頭詞(直後に名詞が続くときだけ)。本命のことが多いので、名詞の候補より前に並べる
+        prefix_alts = _prefix_alts(surface, feat, nxt, start)
         alts = []
         if feat[0] == "名詞" and feat[1] in TARGET_POS2:
             # 同じ文字数のものだけ(「今日 → 饗」のような、字数の違う言葉に化けることはまず無い)
-            alts = [s for s in _dict["nouns"].get(feat[7], []) if s != surface and len(s) == len(surface)]
+            alts = prefix_alts + [s for s in _dict["nouns"].get(feat[7], [])
+                                  if s != surface and len(s) == len(surface) and s not in prefix_alts]
             counter_alts = _counter_alts(feat[7], len(surface))[:1]
             if counter_alts:   # 数字と助数詞の書き方があるときだけ、名詞の候補を 1 つ減らして足す(産業 → 3行)
                 alts = alts[:MAX_CANDIDATES - 1] + counter_alts
@@ -187,9 +192,19 @@ def dictionary_slots(text):
                 s = _dict["verbs"]["forms"].get(f"{other}\t{t}\t{cform}")
                 if s and s != surface and len(s) == len(surface) and s not in alts:
                     alts.append(s)
+        elif feat[0] in ("名詞", "接頭詞"):   # 上の名詞に入らない名詞(数など)と接頭詞は、接頭詞の候補だけ
+            alts = prefix_alts
         if alts:
             out.append((start, surface, alts[:MAX_CANDIDATES]))
     return out
+
+
+def _prefix_alts(surface, feat, nxt, start):
+    """同じ読みの接頭詞(同じ文字数、よく使う順)。surface が名詞か接頭詞で、すぐ後ろに名詞が続くときだけ"""
+    if (feat[0] not in ("名詞", "接頭詞") or not nxt or nxt[0] != start + len(surface) or nxt[2][0] != "名詞"
+            or "prefixes" not in _dict):
+        return []
+    return [s for s in _dict["prefixes"].get(feat[7], []) if s != surface and len(s) == len(surface)]
 
 
 def _near_variants(pron):
