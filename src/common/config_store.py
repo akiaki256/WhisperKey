@@ -150,7 +150,7 @@ def defaults():
         "llm_correction": False,
         "llm_timeout": 3.0,
         # 句読点補正(入力補正がオンのときだけ動く)。Whisper の句読点をはがして、LLM に「、」「。」を付け直させる
-        "llm_punctuation": True,
+        "llm_punctuation": False,
         "llm_punctuation_timeout": 2.0,
     }
 
