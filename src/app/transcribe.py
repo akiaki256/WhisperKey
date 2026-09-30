@@ -85,6 +85,20 @@ def finish_text(text):
     return text
 
 
+def join_segments(texts):
+    """Whisper の区切りごとの文をつなぐ。日本語なので空白は入れず、英数字どうしが並ぶときだけ空白を一つ入れる
+    (前は空白でつないでいて、二文以上話すと「文。 文。」の空白が候補の窓で違いとして引っかかった)"""
+    out = ""
+    for t in texts:
+        t = t.strip()
+        if not t:
+            continue
+        if out and out[-1].isascii() and out[-1].isalnum() and t[0].isascii() and t[0].isalnum():
+            out += " "
+        out += t
+    return out
+
+
 def filter_hallucination(text):
     cleaned_text = text.strip()  # 前後の空白を除去して完全一致をチェック
     if cleaned_text in HALLUCINATION_PHRASES:# ハルシネーションフレーズと完全一致したら空文字を返す
@@ -134,8 +148,8 @@ def whisper_function(wav_queue):
                                                                     speech_pad_ms=200)            # 音声前後の余白
                                                 )
         
-            # テキストを結合
-            text = " ".join([segment.text for segment in segments])
+            # テキストを結合(日本語だけなので、区切りの間に空白は入れない。英字どうしが並ぶときだけ空白でつなぐ)
+            text = join_segments([segment.text for segment in segments])
 
             ## ハルシネーションフレーズを除去
             filtered_text = filter_hallucination(text)
