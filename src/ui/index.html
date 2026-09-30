@@ -8,7 +8,11 @@
 <body>
   <!-- タイトルバー(枠なしの窓なので自作)。pywebview-drag-region の部分だけ、つまんで窓を動かせる -->
   <header class="titlebar">
-    <div class="titlebar-title pywebview-drag-region">WhisperKey</div>
+    <!-- アイコンと「WhisperKey GPU v5.0.0」は settings.js が get_settings から入れる。中の要素もつまんで動かせるように drag-region をつける -->
+    <div class="titlebar-title pywebview-drag-region">
+      <img id="app-icon" class="titlebar-icon pywebview-drag-region" alt="" draggable="false" hidden>
+      <span id="app-title" class="pywebview-drag-region">WhisperKey</span>
+    </div>
     <button class="caption-button" id="btn-minimize" title="最小化"><span class="icon">&#xE921;</span></button>
     <button class="caption-button close" id="btn-close" title="終了"><span class="icon">&#xE8BB;</span></button>
   </header>

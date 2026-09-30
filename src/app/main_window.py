@@ -9,6 +9,7 @@
 - ほかのスレッド(トレイなど)から窓を操作するときは show() を使う
 """
 
+import base64
 import json
 import os
 import threading
@@ -19,8 +20,8 @@ import webview
 
 import audio
 import audio_devices
-import command
 import autostart
+import command
 import config
 import config_store
 import convert_dict
@@ -34,6 +35,7 @@ import paths
 import sounds
 import tray_icon
 from edition import EDITION
+from version import VERSION
 
 _state_manager = key_shortcut.MainStateManager()
 
@@ -221,6 +223,9 @@ class Api:
             "restart_needed": _restart_needed(values),
             # Windows の起動時に立ち上げる(本当の値はレジストリ。開発中は使えない)
             "autostart": {"available": autostart.available(), "enabled": autostart.is_enabled()},
+            # タイトルバー: アイコンと「WhisperKey GPU v5.0.0」
+            "app_title": f"WhisperKey {EDITION.upper()} v{VERSION}",
+            "app_icon": _app_icon_data_url(),
         }
 
     def set_autostart(self, on):
@@ -441,6 +446,17 @@ class Api:
                 _shortcut_errors.pop(other, None)
 
         return {"value": value, "error": problem}
+
+
+def _app_icon_data_url():
+    """タイトルバーのアイコン(assets/app_icon.png)を、画面にそのまま渡せる形で。読めなければ None(文字だけ出す)
+    画面(src/ui)と assets は別の場所なので、絵を二重に持たずに済むよう、ここで読んで渡す"""
+    try:
+        with open(paths.asset("app_icon.png"), "rb") as f:
+            return "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii")
+    except OSError as e:
+        print(f"タイトルバーのアイコンを読めませんでした: {e}")
+        return None
 
 
 def _check_shortcut(action, key_str):

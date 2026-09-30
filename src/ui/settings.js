@@ -120,6 +120,14 @@ async function loadSettings() {
 
   applyTheme(s.values.theme);
 
+  // タイトルバー: アイコンと「WhisperKey GPU v5.0.0」(アイコンが読めなければ文字だけ)
+  document.getElementById("app-title").textContent = s.app_title;
+  if (s.app_icon) {
+    const icon = document.getElementById("app-icon");
+    icon.src = s.app_icon;
+    icon.hidden = false;
+  }
+
   // 音量しきい値(レベルメーターと一体。しくみは level_meter.js)
   setupLevelMeter(s.volume.min, s.volume.max, s.values.volume_threshold);
 

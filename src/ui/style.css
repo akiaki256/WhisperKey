@@ -121,8 +121,15 @@ input {
   flex: 1;
   display: flex;
   align-items: center;
-  padding-left: 16px;
+  gap: 10px;
+  padding-left: 12px;
   font-size: 12px;
+}
+
+/* タイトルバーのアイコン(Windows 11 の窓と同じく 16px) */
+.titlebar-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .caption-button {
