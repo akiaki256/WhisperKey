@@ -156,8 +156,9 @@ def _launch(gguf):
     env["PATH"] = os.pathsep.join(CUDA_DIRS + [env.get("PATH", "")])
     os.makedirs(TEMP_DIR, exist_ok=True)
     log = open(os.path.join(TEMP_DIR, "llama-server.log"), "w", encoding="utf-8", errors="replace")
+    # 文脈の長さ 4096: よく使う言葉が 100 個を超えても溢れないように(2048 だと 100 個ほどで溢れた。VRAM は +32 MB だけ)
     _proc = subprocess.Popen(
-        [LLAMA_SERVER_EXE, "-m", gguf, "-ngl", "99", "-c", "2048", "--host", "127.0.0.1", "--port", str(PORT),
+        [LLAMA_SERVER_EXE, "-m", gguf, "-ngl", "99", "-c", "4096", "--host", "127.0.0.1", "--port", str(PORT),
          "--reasoning", "off", "-np", "1", "--no-ui"],
         stdout=log, stderr=subprocess.STDOUT, env=env, creationflags=subprocess.CREATE_NO_WINDOW)
     log.close()   # 書き込みは llama-server 側が持っている
