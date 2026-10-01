@@ -18,6 +18,10 @@ state_manager = MainStateManager()
 
 file_counter = 0  # ファイル名用のカウンター
 
+# 録音したファイルごとの、かかった時間を測るための覚え書き(transcribe.py が取り出して消す)
+# {wav のパス: {"queued": キューに入れた時刻(time.monotonic), "silence": 無音の判定で待った秒, "voice": 録音の長さ(秒)}}
+recorded = {}
+
 # 今の音量(しきい値と同じ物差し)。録音のループが CHUNK ごとに書き、設定タブのレベルメーターが読む
 _level = 0.0
 
@@ -140,8 +144,9 @@ def recording_function(wav_queue):
     RATE = config.get("audio_device_sample_rate")
     chunk_count = 0
 
-    def save_and_queue(frames):
-        """録音した音声を wav にして、文字起こしのキューに入れる"""
+    def save_and_queue(frames, silence_waited=0.0):
+        """録音した音声を wav にして、文字起こしのキューに入れる
+        silence_waited: 話し終わってから、無音と判定して区切るまでに待った秒(オフ・プッシュトゥトークで区切ったときは 0)"""
         global file_counter
 
         # ファイル名を作成
@@ -159,6 +164,9 @@ def recording_function(wav_queue):
 
         # 文字起こしが先に終わって数が負にならないよう、キューに入れる前に数える
         state_manager.add_pending()
+        # かかった時間をコンソールに出すために、話し終わりの時刻を覚えておく(transcribe.py が取り出す)
+        recorded[output_path] = {"queued": time.monotonic(), "silence": silence_waited,
+                                 "voice": len(frames) * CHUNK / RATE}
         wav_queue.put(output_path)
         print(f"キューに追加: {filename}")
 
@@ -238,7 +246,7 @@ def recording_function(wav_queue):
             if volume < threshold:
                 silence_duration += CHUNK / RATE
                 if silence_duration > duration:
-                    save_and_queue(frames)
+                    save_and_queue(frames, silence_duration)
 
                     # 待機モードの条件復元
                     state = "waiting"

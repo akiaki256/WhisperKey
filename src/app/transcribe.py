@@ -1,8 +1,10 @@
 import os
 import re
+import time
 import traceback
 from datetime import datetime
 
+import audio
 import candidates
 import config
 import config_store
@@ -85,6 +87,22 @@ def finish_text(text):
     return text
 
 
+def print_timings(recorded, started, steps):
+    """入力ごとに、どこで何秒かかったかを一行で出す(速さを測るため)
+    合計は、録音を区切ってから入力するまで(文字起こしの順番待ちを含む)
+    無音と判定するまでに待った時間(無音時間の設定で決まる)は、合計の外に別に出す
+    recorded: audio.recorded の一件(無ければ、文字起こしを始めたところから数える)"""
+    parts = []
+    origin = started
+    head = ""
+    if recorded:
+        origin = recorded["queued"]   # 録音を区切ったところ
+        head = f"声 {recorded['voice']:.1f}秒 | 無音の判定 {recorded['silence']:.2f}秒 | "
+        parts.append(f"待ち {started - recorded['queued']:.2f}")
+    parts += [f"{name} {sec:.2f}" for name, sec in steps]
+    print(f"時間: {head}{' → '.join(parts)} | 合計 {time.monotonic() - origin:.2f}秒")
+
+
 def join_segments(texts):
     """Whisper の区切りごとの文をつなぐ。日本語なので空白は入れず、英数字どうしが並ぶときだけ空白を一つ入れる
     (前は空白でつないでいて、二文以上話すと「文。 文。」の空白が候補の窓で違いとして引っかかった)"""
@@ -133,11 +151,15 @@ def whisper_function(wav_queue):
     while True:
         print("Whisperスレッド：キュー待機中...")
         filepath = wav_queue.get()
+        started = time.monotonic()
+        recorded = audio.recorded.pop(filepath, None)   # 話し終わりの時刻など(かかった時間を出すため)
+        steps = []   # [(名前, 秒)]。入力ごとに、どこで何秒かかったかを最後に一行で出す
         try:
             # 入力ひとつごとの区切り(ログを見て、どこからどこまでが一回の入力かわかるように)
             print(f"\n{'─' * 20} 入力 {datetime.now().strftime('%H:%M:%S')} {'─' * 20}")
             print(f"処理開始: {filepath}")
 
+            t = time.monotonic()
             segments, info = model.get_model().transcribe(filepath,
                                                 language=LANGUAGE,
                                                 beam_size=1,           # デフォルト5→1で高速化
@@ -150,6 +172,7 @@ def whisper_function(wav_queue):
         
             # テキストを結合(日本語だけなので、区切りの間に空白は入れない。英字どうしが並ぶときだけ空白でつなぐ)
             text = join_segments([segment.text for segment in segments])
+            steps.append(("文字起こし", time.monotonic() - t))   # segments は読み出したときに文字起こしが進むので、つないだあとで測る
 
             ## ハルシネーションフレーズを除去
             filtered_text = filter_hallucination(text)
@@ -170,8 +193,13 @@ def whisper_function(wav_queue):
                 # 入力補正(GPU版、オンのとき)。音声実行の判定は直す前の文で済ませてある
                 # (LLM が合言葉を言い換えて、実行されなくなるのを防ぐ)
                 # 同音異義語の確かめのために、Whisper の書き分けも渡す(補正が動くときだけ取る)
-                nbest = whisper_nbest(filepath) if llm_correct.will_correct() else []
+                nbest = []
+                if llm_correct.will_correct():
+                    t = time.monotonic()
+                    nbest = whisper_nbest(filepath)
+                    steps.append(("書き分け", time.monotonic() - t))
                 fixed = llm_correct.correct(result, llm_vocab.get_current(), raw=filtered_text, nbest=nbest)
+                steps += list(llm_correct.timings.items())   # 補正・確かめ・句読点(動いたものだけ)
                 # 「候補を出す」の候補(同音異義語の確かめの「一か所だけ変えた文」と、補正する前の文)
                 # 句読点補正が動いたら、候補の句読点も入力する文とそろえる
                 alternatives = [(t, p) for t, p, _ in homophone.take_alternatives()]
@@ -180,7 +208,10 @@ def whisper_function(wav_queue):
                     alternatives = [(punctuate.match(fixed, t), p) for t, p in alternatives]
                     before_correction = punctuate.match(fixed, result)
                 fixed = finish_text(fixed)  # 「。」を消す(設定でオンのとき)
+                t = time.monotonic()
                 paste.paste(fixed)  # Win + V の履歴に残さない印つきで貼り付ける(設定でオフにできる)
+                steps.append(("貼り付け", time.monotonic() - t))
+                print_timings(recorded, started, steps)
                 print(f"入力: {fixed[:30]}...") # 最初の30文字を表示
                 undo_input.remember(fixed)  # 取り消しのキーで消せるように
                 history.add(fixed, raw=result)  # 入力した文章だけを残す(音声実行は残さない)

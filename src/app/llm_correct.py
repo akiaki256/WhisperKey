@@ -53,6 +53,10 @@ CONTEXT_MAX = 5              # この件数まで
 
 UNCHANGED = "="   # 「直すところが無い」の印
 
+# 最後の correct で、それぞれにかかった秒 {"補正", "確かめ", "句読点"}(動かなかったものは入らない)
+# 文字起こしの係が、入力ごとのかかった時間をコンソールに出すのに使う
+timings = {}
+
 SYSTEM_PROMPT = """\
 あなたは音声入力の誤り訂正器です。
 入力は、ユーザーが話した言葉を音声認識で文字にしたものです。音声認識の誤りだけを直して、直した文を返してください。
@@ -341,10 +345,13 @@ def correct(text, vocabulary=(), raw=None, nbest=()):
     待つ時間の上限は二つに分けて数える
       補正と同音異義語の確かめ: llm_timeout(受け取ってから)
       句読点補正: llm_punctuation_timeout(句読点補正を始めてから)。補正が時間切れでも、句読点補正はする"""
+    timings.clear()
     checked = _correct(text, vocabulary, raw, nbest)
     # 句読点補正(オンのとき。時間切れ・エラーのときは、確かめたあとの文のまま)
     if will_punctuate() and _proc is not None and _proc.poll() is None:
-        checked = punctuate.run(BASE_URL, checked, time.monotonic() + config.get("llm_punctuation_timeout"))
+        started = time.monotonic()
+        checked = punctuate.run(BASE_URL, checked, started + config.get("llm_punctuation_timeout"))
+        timings["句読点"] = time.monotonic() - started
     return checked
 
 
@@ -364,6 +371,7 @@ def _correct(text, vocabulary, raw, nbest):
     try:
         answer, truncated = _chat(_user_message(text, context, now), vocabulary, deadline)
     except (TimeoutError, OSError) as e:
+        timings["補正"] = time.monotonic() - received
         # 時間切れは socket.timeout(OSError の仲間)
         if _proc is None or _proc.poll() is not None:
             _restart()
@@ -378,13 +386,16 @@ def _correct(text, vocabulary, raw, nbest):
     if fixed is None:
         print(f"入力補正: 返事がおかしいので捨てました: {answer[:40]!r}")
         fixed = text
-    print(f"入力補正: {time.monotonic() - received:.2f} 秒{'(変更なし)' if fixed == text else ''}")
+    timings["補正"] = time.monotonic() - received
+    print(f"入力補正: {timings['補正']:.2f} 秒{'(変更なし)' if fixed == text else ''}")
     if fixed != text:
         print(f"入力補正: {text} → {fixed}")
 
     # 同音異義語の確かめ(時間切れ・エラーのときは、そこまでの文が返る)
+    started = time.monotonic()
     checked = homophone.check(BASE_URL, fixed, raw if raw is not None else text, nbest,
                               [f"[{t.strftime('%H:%M:%S')}] {h}" for t, h in context], vocabulary, deadline)
+    timings["確かめ"] = time.monotonic() - started
     if checked != fixed:
         print(f"入力補正: 同音異義語の確かめまで {time.monotonic() - received:.2f} 秒")
     return checked
