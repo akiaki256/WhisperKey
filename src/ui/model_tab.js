@@ -7,15 +7,18 @@
 // - ダウンロード中: くるくる回る矢印と「ダウンロード中 42%」
 // 手元に無いモデルは、ダウンロードが終わるまで選べない(ラジオボタンを押せなくする)
 // 進み具合と終わったことは、Python から onModelProgress / onModelDownloaded で届く
+//
+// 入力補正タブの LLM のカード(correction.js)も、この仕組みを使う。ラジオボタンは無く、エラーはそのタブの帯に出る
 
 const modelList = document.getElementById("model-list");
 
 function modelCard(name) {
-  return modelList.querySelector(`.radio-card[data-model="${name}"]`);
+  return document.querySelector(`.card[data-model="${name}"]`);
 }
 
-function showModelError(message) {
-  const errorEl = document.getElementById("model-error");
+// エラーは、カードのあるタブの帯に出す(カードを渡さなければモデルタブ)
+function showModelError(message, card = null) {
+  const errorEl = card?.closest("section").querySelector(".infobar.error") ?? document.getElementById("model-error");
   errorEl.textContent = message ?? "";
   errorEl.hidden = !message;
   if (message) errorEl.scrollIntoView({ block: "nearest" });   // 一覧を下までスクロールしていても見えるように
@@ -25,8 +28,8 @@ function showModelError(message) {
 // state: "downloaded" / "missing" / "downloading"
 function showModelState(card, state, progress = 0) {
   const status = card.querySelector(".model-status");
-  const radio = card.querySelector("input");
-  radio.disabled = state !== "downloaded";
+  const radio = card.querySelector("input[type=radio]");
+  if (radio) radio.disabled = state !== "downloaded";
   card.classList.toggle("unavailable", state !== "downloaded");
 
   if (state === "downloaded") {
@@ -34,7 +37,7 @@ function showModelState(card, state, progress = 0) {
       <button class="icon-button model-delete" title="このモデルを削除"><span class="icon">&#xE74D;</span></button>`;
     status.querySelector("button").addEventListener("click", async (e) => {
       e.preventDefault();   // カード(label)を押したことにして、ラジオボタンが動かないように
-      showModelError(null);
+      showModelError(null, card);
       // 確認の帯は、押したカードのすぐ下に出す(一覧の下に置くと、モデルが多いときに画面の外になる)
       const bar = document.getElementById("model-delete-confirm");
       card.after(bar);
@@ -45,7 +48,7 @@ function showModelState(card, state, progress = 0) {
       if (!ok) return;
       const result = await window.pywebview.api.delete_model(card.dataset.model);
       if (result.error) {
-        showModelError(result.error);
+        showModelError(result.error, card);
       } else {
         showModelState(card, "missing");
       }
@@ -58,10 +61,10 @@ function showModelState(card, state, progress = 0) {
     status.querySelector(".model-size").textContent = `ダウンロード(${card.dataset.size})`;
     status.querySelector("button").addEventListener("click", async (e) => {
       e.preventDefault();   // カード(label)を押したことにして、ラジオボタンが動かないように
-      showModelError(null);
+      showModelError(null, card);
       const result = await window.pywebview.api.download_model(card.dataset.model);
       if (result.error) {
-        showModelError(result.error);
+        showModelError(result.error, card);
       } else {
         showModelState(card, "downloading", 0);
       }
@@ -156,5 +159,5 @@ function onModelProgress({ name, progress }) {
 function onModelDownloaded({ name, ok, error }) {
   const card = modelCard(name);
   if (card) showModelState(card, ok ? "downloaded" : "missing");
-  if (!ok) showModelError(error);
+  if (!ok) showModelError(error, card);
 }

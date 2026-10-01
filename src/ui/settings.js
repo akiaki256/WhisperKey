@@ -120,6 +120,14 @@ async function loadSettings() {
 
   applyTheme(s.values.theme);
 
+  // タイトルバー: アイコンと「WhisperKey GPU v5.0.0」(アイコンが読めなければ文字だけ)
+  document.getElementById("app-title").textContent = s.app_title;
+  if (s.app_icon) {
+    const icon = document.getElementById("app-icon");
+    icon.src = s.app_icon;
+    icon.hidden = false;
+  }
+
   // 音量しきい値(レベルメーターと一体。しくみは level_meter.js)
   setupLevelMeter(s.volume.min, s.volume.max, s.values.volume_threshold);
 
@@ -148,13 +156,16 @@ async function loadSettings() {
 
   // 入力モード
   showPushToTalk(s.values.push_to_talk);
+  bindToggle(document.getElementById("remove-periods"), document.getElementById("remove-periods-label"),
+    "remove_periods", s.values.remove_periods);
+  bindToggle(document.getElementById("remove-commas"), document.getElementById("remove-commas-label"),
+    "remove_commas", s.values.remove_commas);
 
   // マイク
   bindSelect(document.getElementById("mic-select"), "audio_device_name",
     micChoices(s.mics, s.values.audio_device_name), s.values.audio_device_name);
 
-  // 言語・モデル・テーマ
-  bindSelect(document.getElementById("language-select"), "language", s.languages, s.values.language);
+  // モデル・テーマ
   buildModelList(document.getElementById("model-list"), s.models, s.values.model_size);
   bindSelect(document.getElementById("theme-select"), "theme", s.themes, s.values.theme, applyTheme);
   bindSelect(document.getElementById("indicator-select"), "indicator_mode", s.indicator_modes, s.values.indicator_mode);
@@ -167,9 +178,10 @@ async function loadSettings() {
   bindToggle(document.getElementById("sound-padding"), document.getElementById("sound-padding-label"),
     "sound_padding", s.values.sound_padding);
 
-  // 貼り付け
+  // Windows との連携
   bindToggle(document.getElementById("clipboard-private"), document.getElementById("clipboard-private-label"),
     "clipboard_private", s.values.clipboard_private);
+  showAutostart(s.autostart);
   document.getElementById("restart-notice").hidden = !s.restart_needed;
 
   // 選ばれているモデルが手元に無ければ、モデルタブを開いて知らせる(ショートカットのエラーより優先)
@@ -203,6 +215,10 @@ function onSettingsChanged(changed) {
   if ("push_to_talk" in changed) {
     showPushToTalk(changed.push_to_talk);
   }
+  // 入力履歴をオフにしたら、入力補正もオフになる(main_window.py の update_setting)
+  if ("llm_correction" in changed) {
+    showCorrectionToggle(changed.llm_correction);
+  }
 }
 
 // プッシュトゥトークのスイッチと、ショートカットタブの「音声入力」の説明をそろえる
@@ -219,8 +235,35 @@ document.getElementById("push-to-talk").addEventListener("change", async (e) => 
   if (value !== null) showPushToTalk(value);
 });
 
+// Windows の起動時に立ち上げる
+// 本当の値は Windows の一覧(レジストリ)にあり、config には無いので、saveSetting ではなく set_autostart で変える
+// 開発中(start.bat)は使えないので、スイッチを押せなくする
+function showAutostart(state) {
+  const toggle = document.getElementById("autostart");
+  toggle.checked = state.enabled;
+  toggle.disabled = !state.available;
+  document.getElementById("autostart-label").textContent = state.enabled ? "オン" : "オフ";
+  if (!state.available) {
+    document.getElementById("autostart-desc").textContent = "開発中(start.bat)では使えません。インストールした WhisperKey で設定してください";
+  }
+}
+
+document.getElementById("autostart").addEventListener("change", async (e) => {
+  const result = await window.pywebview.api.set_autostart(e.target.checked);
+  showError(result.error);
+  showAutostart({ available: !e.target.disabled, enabled: result.value });
+});
+
 document.getElementById("btn-restart").addEventListener("click", () => {
   window.pywebview.api.restart();
+});
+
+// インジケーターと候補の窓を、はじめの位置に戻す(インジケーターはその場で動く。候補の窓は次に開いたときから)
+document.getElementById("btn-reset-positions").addEventListener("click", async (e) => {
+  const button = e.currentTarget;
+  const result = await window.pywebview.api.reset_window_positions();
+  button.textContent = result.error ? "戻せませんでした" : "戻しました";
+  setTimeout(() => { button.textContent = "元に戻す"; }, 2000);
 });
 
 // pywebview の準備ができてから Python を呼ぶ

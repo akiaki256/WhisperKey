@@ -4,6 +4,7 @@
 
 - load(): ファイルを読み、初期値の上に重ね、おかしな値を直して返す
     ファイルが無ければ初期値で作る。書式が壊れていれば ConfigError
+- set_aside_broken(): 壊れた config.json を別の名前に移して、初期値で作り直す(ConfigError のあとに呼ぶ)
     → アップデートで項目が増えても、古い config.json で落ちない
 - save(): 値を直してから、一時ファイル経由で書き込む
     → 書き込みの途中で落ちても、config.json が壊れない
@@ -31,6 +32,11 @@ VOLUME_THRESHOLD_MAX = 15000
 SILENCE_DURATION_MIN = 0.3
 SILENCE_DURATION_MAX = 5.0
 SILENCE_DURATION_STEP = 0.1
+
+# 入力補正の時間切れ(秒)。LLM がテキストを受け取ってから、これを過ぎたら補正をあきらめて元の文を入力する
+LLM_TIMEOUT_MIN = 1.0
+LLM_TIMEOUT_MAX = 20.0
+LLM_TIMEOUT_STEP = 0.5
 
 # サンプルレート(MME固定)
 SAMPLE_RATE = 16000
@@ -61,15 +67,14 @@ MODEL_CHOICES_GPU = [
 MODEL_DEFAULT_CPU = "base"
 MODEL_DEFAULT_GPU = "medium"
 
-LANGUAGE_CHOICES = [
-    ("ja", "日本語"),
-    ("en", "English"),
-]
-LANGUAGE_DEFAULT = "ja"
+# 認識する言語は日本語だけ(v5 から。入力補正・同音異義語の確かめ・句読点補正が日本語を前提にしているため)
+# 前の版の config にある "language" は、読み込むときに捨てる
+LANGUAGE = "ja"
 
 SHORTCUT_DEFAULT = "f9"
 UNDO_KEY_DEFAULT = "f10"  # 直前の入力を取り消す。"" なら割り当てない
 MODE_KEY_DEFAULT = "shift+f9"  # 入力モード切り替え(通常 ⇔ プッシュトゥトーク)。"" なら割り当てない
+CANDIDATES_KEY_DEFAULT = "f8"  # 候補を出す(GPU版)。"" なら割り当てない
 
 # 本体の窓の見た目
 THEME_CHOICES = [
@@ -86,15 +91,6 @@ INDICATOR_MODE_CHOICES = [
     ("hidden", "表示しない"),
 ]
 INDICATOR_MODE_DEFAULT = "dot"
-
-# 入力履歴の件数
-HISTORY_LIMIT_CHOICES = [
-    (5, "5 件"),
-    (10, "10 件"),
-    (20, "20 件"),
-    (30, "30 件"),
-]
-HISTORY_LIMIT_DEFAULT = 10
 
 # 音声実行(command_dict.csv)の種類
 COMMAND_TYPES = [
@@ -117,15 +113,20 @@ def defaults():
     """初期値の一覧"""
     return {
         "volume_threshold": 500,
-        "silence_duration": 1.3,
+        "silence_duration": 0.8,
         "audio_device_index": None,
         "audio_device_name": DEFAULT_DEVICE_LABEL,
         "audio_device_sample_rate": SAMPLE_RATE,
         "shortcut_key": SHORTCUT_DEFAULT,
         "undo_key": UNDO_KEY_DEFAULT,
         "mode_key": MODE_KEY_DEFAULT,
+        "candidates_key": CANDIDATES_KEY_DEFAULT,
         # True なら音声入力のキーを押している間だけ録音する(False は押すたびにオン/オフ)
         "push_to_talk": False,
+        # True なら、入力する直前に「。」を消す(最後は消し、文と文の間は半角スペースにする)
+        "remove_periods": False,
+        # True なら、入力する直前に「、」を全部消す
+        "remove_commas": False,
         # 効果音(assets/sounds の wav のファイル名)。"" なら鳴らさない
         "sound_startup": "起動(デフォルト).wav",
         "sound_on": "開始(デフォルト).wav",
@@ -134,16 +135,23 @@ def defaults():
         "sound_padding": True,
         # 貼り付けた音声入力の文字を、Win + V の履歴・クラウド同期に残さない
         "clipboard_private": True,
-        "language": LANGUAGE_DEFAULT,
         "model_size": MODEL_DEFAULT_CPU if EDITION == "cpu" else MODEL_DEFAULT_GPU,
         # インジケーターの表示方法と位置(画面の左上からのピクセル。丸と操作パネルで共通)。つまんで動かすと保存される
         "indicator_mode": INDICATOR_MODE_DEFAULT,
         "indicator_x": 5,
         "indicator_y": 20,
+        # 「候補を出す」の窓の位置(横の真ん中と下の端のピクセル)。None なら画面の中央下。つまんで動かすと保存される
+        "candidates_x": None,
+        "candidates_y": None,
         "theme": THEME_DEFAULT,
-        # 入力履歴(history.json)。オフでも今ある履歴には触らない
+        # 入力履歴(history.json)。オフでも今ある履歴には触らない。件数は history.LIMIT で決まっている
         "history_enabled": True,
-        "history_limit": HISTORY_LIMIT_DEFAULT,
+        # 入力補正(GPU版のみ)。音声認識の結果をローカル LLM で直す。直前の入力を入力履歴から取るので、履歴のオンが要る
+        "llm_correction": False,
+        "llm_timeout": 3.0,
+        # 句読点補正(入力補正がオンのときだけ動く)。Whisper の句読点をはがして、LLM に「、」「。」を付け直させる
+        "llm_punctuation": False,
+        "llm_punctuation_timeout": 2.0,
     }
 
 
@@ -169,6 +177,11 @@ def _fix_int(v, default):
     return int(v)
 
 
+def _fix_optional_int(v):
+    # 整数か None(「まだ決まっていない」)。それ以外は None
+    return int(v) if _is_number(v) else None
+
+
 def _fix_silence(v, default):
     if not _is_number(v):
         return default
@@ -179,6 +192,14 @@ def _fix_silence(v, default):
 def _fix_choice(v, choices, default):
     valid = [choice[0] for choice in choices]  # 先頭が保存値(モデルは説明つきの3つ組なので)
     return v if v in valid else default
+
+
+def _fix_llm_timeout(v, default):
+    # 範囲の端に寄せて、刻み(0.5 秒)にそろえる
+    if not _is_number(v):
+        return default
+    v = max(LLM_TIMEOUT_MIN, min(LLM_TIMEOUT_MAX, float(v)))
+    return round(v / LLM_TIMEOUT_STEP) * LLM_TIMEOUT_STEP
 
 
 def _fix_device_index(v):
@@ -222,20 +243,27 @@ def normalize(raw):
         "shortcut_key": _fix_text(merged["shortcut_key"], d["shortcut_key"]),
         "undo_key": _fix_optional_text(merged["undo_key"], d["undo_key"]),
         "mode_key": _fix_optional_text(merged["mode_key"], d["mode_key"]),
+        "candidates_key": _fix_optional_text(merged["candidates_key"], d["candidates_key"]),
         "push_to_talk": _fix_bool(merged["push_to_talk"], d["push_to_talk"]),
+        "remove_periods": _fix_bool(merged["remove_periods"], d["remove_periods"]),
+        "remove_commas": _fix_bool(merged["remove_commas"], d["remove_commas"]),
         "sound_startup": _fix_optional_text(merged["sound_startup"], d["sound_startup"]),
         "sound_on": _fix_optional_text(merged["sound_on"], d["sound_on"]),
         "sound_off": _fix_optional_text(merged["sound_off"], d["sound_off"]),
         "sound_padding": _fix_bool(merged["sound_padding"], d["sound_padding"]),
         "clipboard_private": _fix_bool(merged["clipboard_private"], d["clipboard_private"]),
-        "language": _fix_choice(merged["language"], LANGUAGE_CHOICES, d["language"]),
         "model_size": _fix_choice(merged["model_size"], model_choices(), d["model_size"]),
         "indicator_mode": _fix_choice(merged["indicator_mode"], INDICATOR_MODE_CHOICES, d["indicator_mode"]),
         "indicator_x": _fix_int(merged["indicator_x"], d["indicator_x"]),
         "indicator_y": _fix_int(merged["indicator_y"], d["indicator_y"]),
+        "candidates_x": _fix_optional_int(merged["candidates_x"]),
+        "candidates_y": _fix_optional_int(merged["candidates_y"]),
         "theme": _fix_choice(merged["theme"], THEME_CHOICES, d["theme"]),
         "history_enabled": _fix_bool(merged["history_enabled"], d["history_enabled"]),
-        "history_limit": _fix_choice(merged["history_limit"], HISTORY_LIMIT_CHOICES, d["history_limit"]),
+        "llm_correction": _fix_bool(merged["llm_correction"], d["llm_correction"]),
+        "llm_timeout": _fix_llm_timeout(merged["llm_timeout"], d["llm_timeout"]),
+        "llm_punctuation": _fix_bool(merged["llm_punctuation"], d["llm_punctuation"]),
+        "llm_punctuation_timeout": _fix_llm_timeout(merged["llm_punctuation_timeout"], d["llm_punctuation_timeout"]),
     }
 
 
@@ -262,6 +290,24 @@ def load():
         raise ConfigError("config.json の書式が不正です(中身が {...} の形になっていません)")
 
     return normalize(raw)
+
+
+def set_aside_broken():
+    """壊れた config.json を config.broken-<日時>.json に移し(消さずに残す)、初期値で作り直す
+    戻り値: (初期値の設定, 移した先のパス)。移せなかったときのパスは None"""
+    from datetime import datetime
+    moved = os.path.join(os.path.dirname(CONFIG_JSON), f"config.broken-{datetime.now():%Y%m%d-%H%M%S}.json")
+    try:
+        os.replace(CONFIG_JSON, moved)
+    except OSError as e:
+        print(f"壊れた config.json を移せませんでした(上書きします): {e}")
+        moved = None
+    config = defaults()
+    try:
+        save(config)
+    except OSError as e:
+        print(f"初期設定の書き込みに失敗(初期値のまま続行): {e}")
+    return config, moved
 
 
 def save(config):

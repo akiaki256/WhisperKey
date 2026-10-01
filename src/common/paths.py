@@ -15,6 +15,17 @@
   インストール先の assets を見る(ビルドとインストーラーが assets をインストール先にも置いている)
     exe化後: exeと同じフォルダ/assets/sounds
     開発中: プロジェクト直下の assets/sounds
+- CUDA_DIRS: GPU版が使う NVIDIA の DLL(cuBLAS・cuDNN)の置き場所。exe に入れると起動のたびに
+  一時フォルダへ展開されて遅く、LLM 補正の llama-server とも共有できないので、exe の外に置く
+    exe化後: exeと同じフォルダ/cuda
+    開発中: 仮想環境の nvidia パッケージ(cublas/bin・cudnn/bin)
+- LLAMA_SERVER_EXE: 入力補正(GPU版)で裏で動かす llama.cpp の llama-server
+    exe化後: exeと同じフォルダ/llama-server/llama-server.exe
+    開発中: _local/vendor/llama-server/<版>/llama-server.exe(版は build.bat の LLAMA_VER と合わせる)
+- HOMOPHONE_DIR: 入力補正(GPU版)の「同音異義語の確かめ」で使う辞書(MeCab の IPA 辞書と、読みの索引)。
+  _scripts/make_homophone_dict.py で作る。exe に入れると起動のたびに展開されて遅いので、exe の外に置く
+    exe化後: exeと同じフォルダ/homophone
+    開発中: _local/vendor/homophone
 """
 
 import os
@@ -30,11 +41,18 @@ if FROZEN:
     ASSETS_DIR = os.path.join(sys._MEIPASS, "assets")
     UI_DIR = os.path.join(sys._MEIPASS, "ui")
     SOUNDS_DIR = os.path.join(APP_DIR, "assets", "sounds")
+    CUDA_DIRS = [os.path.join(APP_DIR, "cuda")]
+    LLAMA_SERVER_EXE = os.path.join(APP_DIR, "llama-server", "llama-server.exe")
+    HOMOPHONE_DIR = os.path.join(APP_DIR, "homophone")
 else:
     APP_DIR = os.path.join(PROJECT_ROOT, "_local", "dev_data")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
     UI_DIR = os.path.join(PROJECT_ROOT, "src", "ui")
     SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
+    _nvidia = os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")
+    CUDA_DIRS = [os.path.join(_nvidia, "cublas", "bin"), os.path.join(_nvidia, "cudnn", "bin")]
+    LLAMA_SERVER_EXE = os.path.join(PROJECT_ROOT, "_local", "vendor", "llama-server", "b11216", "llama-server.exe")
+    HOMOPHONE_DIR = os.path.join(PROJECT_ROOT, "_local", "vendor", "homophone")
 
 # ユーザーデータ
 CONFIG_JSON = os.path.join(APP_DIR, "config.json")
@@ -43,6 +61,8 @@ COMMAND_DICT_CSV = os.path.join(APP_DIR, "command_dict.csv")
 MODELS_DIR = os.path.join(APP_DIR, "models")
 TEMP_DIR = os.path.join(APP_DIR, "temp")
 HISTORY_JSON = os.path.join(APP_DIR, "history.json")
+LLM_VOCAB_CSV = os.path.join(APP_DIR, "llm_vocab.csv")                      # 入力補正の「よく使う言葉」
+LLM_VOCAB_IMPORTED_JSON = os.path.join(APP_DIR, "llm_vocab_imported.json")  # 辞書から取り込んだ変換後の覚え書き
 
 # 配布フォルダ内の実行ファイル(exe化後のみ使用)
 RESTART_BAT = os.path.join(APP_DIR, "restart.bat")

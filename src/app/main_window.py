@@ -9,6 +9,7 @@
 - ほかのスレッド(トレイなど)から窓を操作するときは show() を使う
 """
 
+import base64
 import json
 import os
 import threading
@@ -19,17 +20,22 @@ import webview
 
 import audio
 import audio_devices
+import autostart
 import command
 import config
 import config_store
 import convert_dict
 import history
 import key_shortcut
+import llm_correct
+import llm_vocab
 import model
 import model_store
 import paths
 import sounds
 import tray_icon
+from edition import EDITION
+from version import VERSION
 
 _state_manager = key_shortcut.MainStateManager()
 
@@ -40,14 +46,19 @@ _shortcut_errors = {}  # 起動時にショートカットキーを登録でき�
 _downloading = None    # ダウンロード中のモデルの名前(一度に一つだけ)
 
 # ショートカットの役割ごとの、config の項目名と画面での名前(key_shortcut.ACTIONS と合わせる)
+# 「候補を出す」は GPU版だけ(入力補正の同音異義語の確かめから候補を作るため)
 SHORTCUT_CONFIG_KEYS = {"toggle": "shortcut_key", "mode": "mode_key", "undo": "undo_key"}
 SHORTCUT_LABELS = {"toggle": "音声入力", "mode": "入力モード切り替え", "undo": "直前の入力を取り消す"}
+if EDITION == "gpu":
+    SHORTCUT_CONFIG_KEYS["candidates"] = "candidates_key"
+    SHORTCUT_LABELS["candidates"] = "候補を出す"
 
 # 画面から変えてよい項目(インジケーターの位置などは画面から変えない)
 EDITABLE_KEYS = {
-    "volume_threshold", "silence_duration", "audio_device_name", "language", "model_size", "theme",
-    "history_enabled", "history_limit", "push_to_talk", "indicator_mode",
+    "volume_threshold", "silence_duration", "audio_device_name", "model_size", "theme",
+    "history_enabled", "push_to_talk", "remove_periods", "remove_commas", "indicator_mode",
     "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
+    "llm_correction", "llm_timeout", "llm_punctuation", "llm_punctuation_timeout",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
@@ -68,6 +79,18 @@ def _model_list():
         }
         for value, name, desc in config_store.model_choices()
     ]
+
+
+def _llm_model():
+    """入力補正のモデル(入力補正タブのカード用。形はモデルタブのカードと同じ)"""
+    name = model_store.LLM_MODEL
+    return {
+        "value": name,
+        "name": name,
+        "size": model_store.MODELS[name]["size"],
+        "downloaded": model_store.local_path(name) is not None,
+        "downloading": name == _downloading,
+    }
 
 
 def _restart_needed(values):
@@ -137,6 +160,11 @@ def _on_history_changed(entries):
     _call_js("onHistoryChanged", entries)
 
 
+def _on_correction_status(status):
+    """入力補正の準備中・準備完了・失敗を、入力補正タブで知らせる"""
+    _call_js("onCorrectionStatus", status)
+
+
 def _system_is_dark():
     """Windows のアプリのモードがダークか"""
     try:
@@ -177,15 +205,37 @@ class Api:
                 "max": config_store.SILENCE_DURATION_MAX,
                 "step": config_store.SILENCE_DURATION_STEP,
             },
-            "languages": config_store.LANGUAGE_CHOICES,
             "models": _model_list(),
             "themes": config_store.THEME_CHOICES,
             "indicator_modes": config_store.INDICATOR_MODE_CHOICES,
             "sounds": sounds.list_sounds(),
-            "history_limits": config_store.HISTORY_LIMIT_CHOICES,
             "mics": self.get_mics(),
+            # 入力補正タブ(GPU版だけ見せる)
+            "edition": EDITION,
+            "llm_model": _llm_model() if EDITION == "gpu" else None,
+            "llm_timeout": {
+                "min": config_store.LLM_TIMEOUT_MIN,
+                "max": config_store.LLM_TIMEOUT_MAX,
+                "step": config_store.LLM_TIMEOUT_STEP,
+            },
+            "correction_status": llm_correct.status(),
             "restart_needed": _restart_needed(values),
+            # Windows の起動時に立ち上げる(本当の値はレジストリ。開発中は使えない)
+            "autostart": {"available": autostart.available(), "enabled": autostart.is_enabled()},
+            # タイトルバー: アイコンと「WhisperKey GPU v5.0.0」
+            "app_title": f"WhisperKey {EDITION.upper()} v{VERSION}",
+            "app_icon": _app_icon_data_url(),
         }
+
+    def set_autostart(self, on):
+        """Windows の起動時に立ち上げるかを変える。{"value": 今の状態} か {"error": 理由}"""
+        if not autostart.available():
+            return {"error": "開発中(start.bat)では使えません", "value": autostart.is_enabled()}
+        try:
+            autostart.set_enabled(bool(on))
+        except OSError as e:
+            return {"error": f"Windows の設定を変えられませんでした: {e}", "value": autostart.is_enabled()}
+        return {"value": autostart.is_enabled()}
 
     def get_level(self):
         """今の音量(しきい値と同じ物差し)。設定タブを開いているあいだ、画面が 50ms ごとに取りに来る"""
@@ -207,20 +257,42 @@ class Api:
         if key == "model_size" and model_store.local_path(value) is None:
             return {"error": "このモデルはまだダウンロードしていません。先にダウンロードしてください"}
 
+        # 入力補正をオンにできるのは、GPU版で、入力履歴がオン(直前の入力を履歴から取る)で、モデルが手元にあるとき
+        if key == "llm_correction" and value:
+            if EDITION != "gpu":
+                return {"error": "入力補正は GPU版だけの機能です"}
+            if not config.get("history_enabled"):
+                return {"error": "入力補正を使うには、先に入力履歴をオンにしてください(入力履歴タブの一番下)"}
+            if model_store.local_path(model_store.LLM_MODEL) is None:
+                return {"error": "入力補正のモデルがまだありません。先にダウンロードしてください"}
+
+        changes = {key: value}
+        # 入力履歴をオフにしたら、入力補正もオフにする(画面には onSettingsChanged で届く)
+        if key == "history_enabled" and not value and config.get("llm_correction"):
+            changes["llm_correction"] = False
+
         try:
             if key == "push_to_talk":
                 _state_manager.set_push_to_talk(bool(value))  # オンにしたら録音をオフにそろえる処理も一緒に
-            values = config.update({key: value})
+            values = config.update(changes)
             if key == "model_size":
                 _load_if_needed()
-            if key == "history_limit":
-                history.trim(values["history_limit"])  # あふれた古い履歴を消す(画面で確認済み)
         except OSError as e:
             return {"error": f"設定の保存に失敗しました: {e}"}
         return {
             "value": values[key],
             "restart_needed": _restart_needed(values),
         }
+
+    def reset_window_positions(self):
+        """インジケーターと候補の窓の位置を初期値に戻す(画面の外に出て見つからなくなったときの逃げ道)
+        インジケーターは config の変わったのを見て、その場で動く。候補の窓は次に開いたときから"""
+        d = config_store.defaults()
+        try:
+            config.update({k: d[k] for k in ("indicator_x", "indicator_y", "candidates_x", "candidates_y")})
+        except OSError as e:
+            return {"error": f"設定の保存に失敗しました: {e}"}
+        return {}
 
     def restart(self):
         tray_icon.restart_app()
@@ -249,6 +321,8 @@ class Api:
             return {"error": "このモデルは今使われています。再起動したあとに削除してください"}
         if name == _downloading:
             return {"error": "ダウンロード中のモデルは削除できません"}
+        if name == model_store.LLM_MODEL and config.get("llm_correction"):
+            return {"error": "入力補正がオンの間は削除できません。入力補正をオフにしてから削除してください"}
         try:
             model_store.delete(name)
         except OSError as e:
@@ -307,6 +381,29 @@ class Api:
             return {"error": f"辞書の保存に失敗しました: {e}"}
         return {}
 
+    # ---- 入力補正の「よく使う言葉」 ----
+
+    def get_vocab(self):
+        """[{"word": 言葉, "reading": よみがな}, ...]"""
+        return llm_vocab.get_rows()
+
+    def save_vocab(self, rows):
+        """一覧をまるごと保存する"""
+        try:
+            llm_vocab.save_rows(rows)
+        except OSError as e:
+            return {"error": f"よく使う言葉の保存に失敗しました: {e}"}
+        return {}
+
+    def import_vocab_from_dict(self):
+        """音声辞書の変換後のうち、前回取り込んだあとに増えたものを足す。足した数と、足したあとの一覧を返す"""
+        afters = [group["after"] for group in convert_dict.get_groups()]
+        try:
+            added = llm_vocab.import_from_dict(afters)
+        except OSError as e:
+            return {"error": f"よく使う言葉の保存に失敗しました: {e}"}
+        return {"added": added, "rows": llm_vocab.get_rows()}
+
     # ---- ショートカットキー(キーを押して決める) ----
     # 始めるときに全部の役割の登録を外し(どのキーも画面に届くように)、終わるときに登録し直す
 
@@ -350,6 +447,17 @@ class Api:
         return {"value": value, "error": problem}
 
 
+def _app_icon_data_url():
+    """タイトルバーのアイコン(assets/app_icon.png)を、画面にそのまま渡せる形で。読めなければ None(文字だけ出す)
+    画面(src/ui)と assets は別の場所なので、絵を二重に持たずに済むよう、ここで読んで渡す"""
+    try:
+        with open(paths.asset("app_icon.png"), "rb") as f:
+            return "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii")
+    except OSError as e:
+        print(f"タイトルバーのアイコンを読めませんでした: {e}")
+        return None
+
+
 def _check_shortcut(action, key_str):
     """画面で選ばれたキーを、その役割に使ってよいか。よければ None、だめなら理由の文"""
     if key_str == "":
@@ -374,6 +482,7 @@ def create(shortcut_errors=None):
     _shortcut_errors = dict(shortcut_errors or {})
     config.add_listener(_on_config_changed)
     history.add_listener(_on_history_changed)
+    llm_correct.add_listener(_on_correction_status)
 
     theme = config.get("theme")
     dark = theme == "dark" or (theme == "system" and _system_is_dark())
@@ -382,8 +491,8 @@ def create(shortcut_errors=None):
         "WhisperKey",
         url=os.path.join(paths.UI_DIR, "index.html"),
         js_api=Api(),
-        width=820,
-        height=560,
+        width=920,
+        height=710,
         background_color=BG_DARK if dark else BG_LIGHT,
         resizable=False,
         frameless=True,

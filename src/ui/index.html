@@ -8,7 +8,11 @@
 <body>
   <!-- タイトルバー(枠なしの窓なので自作)。pywebview-drag-region の部分だけ、つまんで窓を動かせる -->
   <header class="titlebar">
-    <div class="titlebar-title pywebview-drag-region">WhisperKey</div>
+    <!-- アイコンと「WhisperKey GPU v5.0.0」は settings.js が get_settings から入れる。中の要素もつまんで動かせるように drag-region をつける -->
+    <div class="titlebar-title pywebview-drag-region">
+      <img id="app-icon" class="titlebar-icon pywebview-drag-region" alt="" draggable="false" hidden>
+      <span id="app-title" class="pywebview-drag-region">WhisperKey</span>
+    </div>
     <button class="caption-button" id="btn-minimize" title="最小化"><span class="icon">&#xE921;</span></button>
     <button class="caption-button close" id="btn-close" title="終了"><span class="icon">&#xE8BB;</span></button>
   </header>
@@ -19,6 +23,8 @@
       <button data-tab="history"><span class="icon">&#xE81C;</span>入力履歴</button>
       <button data-tab="dict"><span class="icon">&#xE82D;</span>音声辞書</button>
       <button data-tab="command"><span class="icon">&#xE768;</span>音声実行</button>
+      <!-- GPU版だけ(CPU版では correction.js が隠す) -->
+      <button data-tab="correction" class="gpu-only"><span class="icon">&#xE70F;</span>入力補正</button>
       <button data-tab="model"><span class="icon">&#xE950;</span>モデル</button>
       <button data-tab="shortcuts"><span class="icon">&#xE765;</span>ショートカット</button>
       <button data-tab="settings"><span class="icon">&#xE713;</span>設定</button>
@@ -62,6 +68,18 @@
           </div>
         </div>
 
+        <div class="card gpu-only">
+          <div class="card-text">
+            <div class="card-title">候補を出す</div>
+            <div class="card-desc">入力補正で入力した文の、ほかの候補を出します。もう一度押すか ↑↓ で選んで、Enter で入れ替えます(Esc で閉じる)。入力のあとにカーソルを動かしていると、違うところが消えるので注意してください</div>
+          </div>
+          <div class="card-control">
+            <button class="shortcut-button" data-action="candidates"></button>
+            <button class="icon-button shortcut-clear" data-action="candidates" title="割り当てない"><span class="icon">&#xE711;</span></button>
+          </div>
+        </div>
+
+        <h2>ヘルプ</h2>
         <!-- 押すと広がるカード。中身はキーの判定(key_shortcut.py の check_new_shortcut と
              settings_shortcut.js の mainKeyName)に合わせて書く -->
         <details class="card expander">
@@ -112,26 +130,12 @@
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="history-enabled">入力履歴を残す</label>
-            <div class="card-desc">オンの間、入力した文章を残します。履歴はローカルファイルへ保存されます</div>
+            <div class="card-desc">オンの間、入力した文章を新しいものから 20 件まで残します。履歴はローカルファイルへ保存されます</div>
           </div>
           <div class="card-control">
             <span id="history-enabled-label" class="toggle-label"></span>
             <input type="checkbox" id="history-enabled" class="toggle">
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="history-limit">残す件数</label>
-            <div class="card-desc">超えた分は、古いものから消えます</div>
-          </div>
-          <div class="card-control"><select id="history-limit"></select></div>
-        </div>
-        <div id="history-limit-confirm" class="infobar warning" hidden>
-          <span class="icon">&#xE7BA;</span>
-          <span class="infobar-text"></span>
-          <button class="accent confirm-ok">消す</button>
-          <button class="confirm-cancel">やめる</button>
         </div>
 
         <div class="card">
@@ -174,20 +178,96 @@
         <div id="command-list"></div>
       </section>
 
+      <!-- 入力補正(GPU版だけ)。音声認識の結果をローカル LLM で直してから入力する。動きは correction.js -->
+      <section id="tab-correction">
+        <h1>入力補正</h1>
+        <p id="correction-error" class="infobar error" hidden></p>
+        <!-- 準備中・準備完了を知らせる(correction.js) -->
+        <p id="correction-notice" class="infobar" hidden></p>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-correction">入力補正</label>
+            <div class="card-desc">聞き間違いをローカルの LLM で直します。入力までが少し遅くなります。入力履歴をオンにしてから使ってください</div>
+          </div>
+          <div class="card-control">
+            <span id="llm-correction-label" class="toggle-label"></span>
+            <input type="checkbox" id="llm-correction" class="toggle">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-punctuation">句読点補正</label>
+            <div class="card-desc">「、」「。」を LLM が付け直して、付き方をそろえます。入力までが少し遅くなります。いらない「、」「。」は設定タブで消せます</div>
+          </div>
+          <div class="card-control">
+            <span id="llm-punctuation-label" class="toggle-label"></span>
+            <input type="checkbox" id="llm-punctuation" class="toggle">
+          </div>
+        </div>
+
+        <!-- よく使う言葉。押すと広がり、中に登録欄が並ぶ(correction.js が言葉の数だけカードを作る) -->
+        <details class="card expander" id="vocab-expander">
+          <summary>
+            <span class="icon">&#xE8F1;</span>
+            <span class="card-text">
+              <span class="card-title">よく使う言葉を追加学習</span>
+              <span class="card-desc" id="vocab-summary"></span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="vocab-body">
+            <div class="section-head">
+              <p class="section-desc">補正の手がかりとして LLM に渡します。よみがなが空の言葉は使われません</p>
+              <button id="btn-add-vocab" class="accent"><span class="icon">&#xE710;</span> 追加</button>
+            </div>
+            <p id="vocab-notice" class="infobar" hidden></p>
+            <button id="btn-import-vocab" class="subtle"><span class="icon">&#xE896;</span> 音声辞書の変換後をまとめて登録</button>
+            <div id="vocab-list"></div>
+          </div>
+        </details>
+
+        <h2>使用するモデル</h2>
+        <!-- LLM のモデル。右側(ダウンロード・削除)の動きはモデルタブと同じ(model_tab.js の showModelState) -->
+        <div class="card" id="llm-model-card">
+          <div class="card-text">
+            <div class="card-title"></div>
+            <div class="card-desc">ダウンロードすると、入力補正をオンにできます</div>
+          </div>
+          <div class="card-control model-status"></div>
+        </div>
+
+        <h2>処理時間の上限</h2>
+        <p class="section-desc">過ぎたら、そこまでの結果で入力します</p>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-timeout-range">入力補正を待つ時間の上限</label>
+            <div class="card-desc">補正と同音異義語の確かめを待つ時間</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="llm-timeout-range">
+            <input type="number" id="llm-timeout-number"><span class="unit">秒</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="llm-punctuation-timeout-range">句読点補正を待つ時間の上限</label>
+            <div class="card-desc">句読点の付け直しを待つ時間</div>
+          </div>
+          <div class="card-control">
+            <input type="range" id="llm-punctuation-timeout-range">
+            <input type="number" id="llm-punctuation-timeout-number"><span class="unit">秒</span>
+          </div>
+        </div>
+      </section>
+
       <!-- 声をどう聞き取って言葉にするか(言語・モデル)。保存のしくみは設定タブと同じ(settings.js) -->
       <section id="tab-model">
         <h1>モデル</h1>
         <p id="model-error" class="infobar error" hidden></p>
         <!-- 選ばれているモデルが手元に無い・読み込み中・読み込めた、を知らせる(model_tab.js) -->
         <p id="model-notice" class="infobar" hidden></p>
-
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="language-select">認識言語</label>
-            <div class="card-desc">話す言葉を選びます</div>
-          </div>
-          <div class="card-control"><select id="language-select"></select></div>
-        </div>
 
         <h2>使用するモデル</h2>
         <p class="section-desc">大きいモデルほど正確ですが、処理が重くなります</p>
@@ -222,8 +302,41 @@
             <input type="checkbox" id="push-to-talk" class="toggle">
           </div>
         </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="remove-periods">「。」を消す</label>
+            <div class="card-desc">オンにすると、入力する文の「。」を消します。最後の「。」は消し、文と文の間の「。」は半角スペースにします</div>
+          </div>
+          <div class="card-control">
+            <span id="remove-periods-label" class="toggle-label"></span>
+            <input type="checkbox" id="remove-periods" class="toggle">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="remove-commas">「、」を消す</label>
+            <div class="card-desc">オンにすると、入力する文の「、」をすべて消します</div>
+          </div>
+          <div class="card-control">
+            <span id="remove-commas-label" class="toggle-label"></span>
+            <input type="checkbox" id="remove-commas" class="toggle">
+          </div>
+        </div>
 
-        <h2>録音</h2>
+        <h2>全般</h2>
+        <!-- ここから下は、押すと広がるグループ(Windows 11 の設定画面のように)。中の項目は線で区切って並べる -->
+        <details class="card expander group">
+          <summary>
+            <span class="icon">&#xE767;</span>
+            <span class="card-text">
+              <span class="card-title">サウンド</span>
+              <span class="card-desc">マイク・音量しきい値・無音時間・効果音</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="group-body">
+
+        <h3>録音</h3>
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="mic-select">マイク</label>
@@ -259,19 +372,7 @@
           </div>
         </div>
 
-        <h2>貼り付け</h2>
-        <div class="card">
-          <div class="card-text">
-            <label class="card-title" for="clipboard-private">Win + V の履歴に残さない</label>
-            <div class="card-desc">音声入力の文字を、クリップボードの履歴やほかのパソコンへの同期に残しません</div>
-          </div>
-          <div class="card-control">
-            <span id="clipboard-private-label" class="toggle-label"></span>
-            <input type="checkbox" id="clipboard-private" class="toggle">
-          </div>
-        </div>
-
-        <h2>効果音</h2>
+        <h3>効果音</h3>
         <p class="section-desc">インストール先の assets\sounds に wav ファイルを入れると、ここで選べるようになります</p>
         <!-- settings.js が選択肢(「なし」+ assets/sounds の wav)を入れる。▶ で試し聞き -->
         <div class="card">
@@ -306,7 +407,20 @@
           </div>
         </div>
 
-        <h2>外観</h2>
+          </div>
+        </details>
+
+        <details class="card expander group">
+          <summary>
+            <span class="icon">&#xE771;</span>
+            <span class="card-text">
+              <span class="card-title">外観</span>
+              <span class="card-desc">インジケーター・テーマ・窓の位置</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="group-body">
+
         <div class="card">
           <div class="card-text">
             <label class="card-title" for="indicator-select">インジケーター</label>
@@ -320,6 +434,52 @@
           </div>
           <div class="card-control"><select id="theme-select"></select></div>
         </div>
+        <div class="card">
+          <div class="card-text">
+            <div class="card-title">窓の位置を元に戻す</div>
+            <div class="card-desc">インジケーターと候補の窓を、はじめの位置に戻します。モニターを外したときなど、見つからなくなったときに使ってください</div>
+          </div>
+          <div class="card-control"><button id="btn-reset-positions">元に戻す</button></div>
+        </div>
+
+          </div>
+        </details>
+
+        <details class="card expander group">
+          <summary>
+            <span class="icon">&#xE770;</span>
+            <span class="card-text">
+              <span class="card-title">Windows との連携</span>
+              <span class="card-desc">クリップボードの履歴・Windows の起動時に立ち上げる</span>
+            </span>
+            <span class="icon chevron">&#xE70D;</span>
+          </summary>
+          <div class="group-body">
+
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="clipboard-private">Win + V の履歴に残さない</label>
+            <div class="card-desc">音声入力の文字を、クリップボードの履歴やほかのパソコンへの同期に残しません</div>
+          </div>
+          <div class="card-control">
+            <span id="clipboard-private-label" class="toggle-label"></span>
+            <input type="checkbox" id="clipboard-private" class="toggle">
+          </div>
+        </div>
+        <!-- 本当の値は Windows の一覧(レジストリの Run)。インストーラーの「Windows起動時に自動的に起動する」と同じもの -->
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="autostart">Windows の起動時に立ち上げる</label>
+            <div class="card-desc" id="autostart-desc">パソコンを起動してサインインしたら、WhisperKey も自動で立ち上がります</div>
+          </div>
+          <div class="card-control">
+            <span id="autostart-label" class="toggle-label"></span>
+            <input type="checkbox" id="autostart" class="toggle">
+          </div>
+        </div>
+
+          </div>
+        </details>
 
       </section>
     </main>
@@ -333,5 +493,6 @@
   <script src="dict.js"></script>
   <script src="command.js"></script>
   <script src="history.js"></script>
+  <script src="correction.js"></script>
 </body>
 </html>

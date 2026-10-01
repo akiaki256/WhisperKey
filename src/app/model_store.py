@@ -5,6 +5,7 @@ Whisper だけでなく、あとから足すモデル(kotoba-whisper、ローカ
 モデルを足すときは MODELS に一行足す。
 
 - MODELS: モデルの一覧 {モデルの名前: Hugging Face の場所・取ってくるファイル・大きさの目安}
+    手元にそろっていると言えるファイルが Whisper と違うものは "required" に書く
 - local_path(name): 手元にあれば、そのフォルダ。無ければ None。**ネットには出ない**
 - download(name, on_progress): Hugging Face から取ってくる。on_progress(0.0〜1.0) で進み具合を知らせる
 - delete(name): 手元のモデルを消す
@@ -31,6 +32,9 @@ from paths import MODELS_DIR
 # faster-whisper(CTranslate2 形式の Whisper)が使うファイル(faster_whisper.utils.download_model と同じ)
 WHISPER_FILES = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
 
+LLM_MODEL = "gemma-4-E4B-it"
+LLM_FILE = "gemma-4-E4B-it-Q4_K_M.gguf"
+
 MODELS = {
     "tiny": {"repo": "Systran/faster-whisper-tiny", "files": WHISPER_FILES, "size": "約 75 MB"},
     "base": {"repo": "Systran/faster-whisper-base", "files": WHISPER_FILES, "size": "約 145 MB"},
@@ -39,9 +43,12 @@ MODELS = {
     "large-v3": {"repo": "Systran/faster-whisper-large-v3", "files": WHISPER_FILES, "size": "約 3.1 GB"},
     "large-v3-turbo": {"repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo", "files": WHISPER_FILES, "size": "約 1.6 GB"},
     "kotoba-whisper-v2.0": {"repo": "kotoba-tech/kotoba-whisper-v2.0-faster", "files": WHISPER_FILES, "size": "約 1.5 GB"},
+    # 入力補正の LLM(GPU版)。画像用の部品(mmproj)は使わないので取らない
+    LLM_MODEL: {"repo": "lmstudio-community/gemma-4-E4B-it-GGUF", "files": [LLM_FILE], "required": [LLM_FILE],
+                "size": "約 5.3 GB"},
 }
 
-# 手元にそろっていると言えるファイル(これが無ければ「無い」とみなす)
+# 手元にそろっていると言えるファイル(これが無ければ「無い」とみなす)。Whisper の形
 _REQUIRED = ["config.json", "model.bin"]
 
 _POLL_SECONDS = 0.3
@@ -62,7 +69,7 @@ def local_path(name):
             info["repo"], cache_dir=MODELS_DIR, allow_patterns=info["files"], local_files_only=True)
     except Exception:
         return None
-    if all(os.path.exists(os.path.join(path, f)) for f in _REQUIRED):
+    if all(os.path.exists(os.path.join(path, f)) for f in info.get("required", _REQUIRED)):
         return path
     return None
 

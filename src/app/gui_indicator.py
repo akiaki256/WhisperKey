@@ -15,6 +15,8 @@
 共通:
 - つまんで(ドラッグで)動かせる。丸は丸ごと、パネルは左端のつまむところ
   離した位置を config.json に保存し、次の起動でもそこに出す(丸とパネルで共通の位置)
+- 設定の位置が変わったら(設定タブの「窓の位置を元に戻す」)、起動中でもそこへ動く
+  モニターを外すなどして画面の外に出たら、初期位置に戻す(1 秒ごとに確かめる)
 - 押してもフォーカスを奪わない(WS_EX_NOACTIVATE)。入力したいアプリにフォーカスが残るので、
   貼り付けの行き先がこの窓になってしまうことがない
 - 丸のときは窓の背景の黒(#000000)を透明にして、丸の周りを抜く
@@ -24,6 +26,9 @@
 
 tkinter はこの窓を作ったスレッドからしか触らない。
 ほかのスレッドから呼ばれるのではなく、この窓が 0.1 秒ごとに状態を見に行く。
+- 途中でエラーが起きても、次に見に行く予約は必ずする(一度のエラーで見張りが止まり、窓が固まらないように)
+- 出ている間は 1 秒ごとに、最前面の一番上に置き直す。最前面の窓どうしの中でも、あとから前に出た窓が上になるので、
+  タスクバー(これも最前面の窓)を押したり、ほかのアプリが最前面になったりすると、その下に潜り込んだままになるため
 """
 
 import ctypes
@@ -33,14 +38,17 @@ import tkinter as tk
 
 from PIL import Image, ImageDraw, ImageTk
 
+import candidates
 import config
 import config_store
 import undo_input
+from candidate_window import CandidateWindow
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
 
 POLL_MS = 100
+RAISE_EVERY = 10   # 最前面の一番上に置き直す間隔(POLL_MS の何回に一回か。1 秒)
 
 # 状態の色(丸のマイクと、操作パネルの録音ボタンで共通)
 GREEN = "lime"
@@ -72,6 +80,9 @@ _user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
 _user32.SetWindowLongW.restype = ctypes.c_long
 _user32.MonitorFromPoint.argtypes = [wintypes.POINT, wintypes.DWORD]
 _user32.MonitorFromPoint.restype = wintypes.HMONITOR
+_user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                 ctypes.c_int, ctypes.c_int, wintypes.UINT]
+_user32.SetWindowPos.restype = wintypes.BOOL
 
 _dwmapi = ctypes.WinDLL("dwmapi")
 
@@ -84,6 +95,10 @@ DWMWA_COLOR_NONE = 0xFFFFFFFE         # 枠を描かない
 BORDER_WHITE = 0x00FFFFFF             # COLORREF(0x00BBGGRR)
 WS_EX_NOACTIVATE = 0x08000000
 MONITOR_DEFAULTTONULL = 0
+HWND_TOPMOST = wintypes.HWND(-1)
+SWP_NOSIZE = 0x0001
+SWP_NOMOVE = 0x0002
+SWP_NOACTIVATE = 0x0010
 
 
 def _dwm_set(hwnd, attribute, value):
@@ -136,10 +151,14 @@ class IndicatorWindow:
         self.mode = None       # 今作ってある表示方法
         self.content = None    # 今の中身(丸のラベル、またはパネルの枠)
         self.drag_offset = None
+        self.ticks = 0         # 見に行った回数(最前面に置き直す間隔を数える)
 
         ## 最初は非表示
         self.root.withdraw()
         self.visible = False
+
+        # 「候補を出す」の窓(GPU版)。tkinter を同じスレッドで使うため、この Tk の上に作る
+        self.candidate_window = CandidateWindow(self.root)
 
         self.root.after(POLL_MS, self.update_indicator)
 
@@ -225,7 +244,8 @@ class IndicatorWindow:
 
     def on_undo(self):
         # Backspace を送り終わるまで窓が固まらないよう、別のスレッドで
-        threading.Thread(target=undo_input.undo, daemon=True).start()
+        # 取り消したら「候補を出す」の候補も忘れる(入れ替える入力が無くなるので)
+        threading.Thread(target=lambda: (undo_input.undo(), candidates.forget()), daemon=True).start()
 
     def on_ptt(self):
         try:
@@ -270,9 +290,37 @@ class IndicatorWindow:
     # ---- 0.1 秒ごとに状態を見る ----
 
     def update_indicator(self):
+        try:
+            self.refresh()
+        except Exception as e:
+            print(f"インジケーターの更新でエラー(次の回も続けます): {e!r}")
+        finally:
+            self.root.after(POLL_MS, self.update_indicator)
+
+    def raise_to_top(self):
+        """最前面の一番上に置き直す。フォーカスは奪わず、位置と大きさも変えない"""
+        _user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+
+    def follow_position(self):
+        """位置を合わせる(つまんでいる途中は何もしない)
+        - 設定の位置が変わったら(「窓の位置を元に戻す」のボタン)、そこへ動く
+        - モニターを外すなどして画面の外に出ていたら、初期位置に戻して保存する"""
+        if self.drag_offset is not None:
+            return
+        x, y = config.get("indicator_x"), config.get("indicator_y")
+        if self.ticks % RAISE_EVERY == 0 and not _on_screen(x, y):
+            d = config_store.defaults()
+            x, y = d["indicator_x"], d["indicator_y"]
+            self.save_position(x, y)
+        if (x, y) != (self.x, self.y):
+            self.x, self.y = x, y
+            self.root.geometry(f"+{x}+{y}")
+
+    def refresh(self):
         mode = config.get("indicator_mode")
         if mode != self.mode:
             self.apply_mode(mode)
+        self.follow_position()
 
         recording = state_manager.get_state() == "start"
         transcribing = state_manager.is_transcribing()
@@ -295,7 +343,9 @@ class IndicatorWindow:
             self.root.withdraw()
             self.visible = False
 
-        self.root.after(POLL_MS, self.update_indicator)
+        self.ticks += 1
+        if self.visible and self.ticks % RAISE_EVERY == 0:
+            self.raise_to_top()
 
     def run(self):
         self.root.mainloop()
