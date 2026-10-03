@@ -9,6 +9,8 @@
   Enter を借りっぱなしにしないよう、IDLE_CLOSE_SECONDS 触らなかったら閉じる
 - 最初の入力と違うところに背景色をつける
 - 一度に見せるのは VISIBLE_ROWS 行まで。選んでいる行が外に出たら、見せる範囲をずらす(ホイールでも動かせる)
+- 開発中だけ、いちばん下に「この中にない」を出す。押すと、正解の文を打つ小さな窓を開き、候補と一緒に記録する
+  (candidates.log_miss。Enter で記録、Esc・閉じるで正解なしとして記録)
 - 見た目は操作パネルと同じ(暗い色、角丸と白い枠)。つまんで(見出しをドラッグして)動かせて、位置を config に覚える
   覚えるのは「横の真ん中」と「下の端」(candidates_x / candidates_y)。候補の長さで窓の幅が変わっても同じ場所に出るように
   覚えていなければ、画面の中央下に出す。出すたびに、窓全体をモニターの見える範囲(タスクバーを除く)に収める
@@ -108,6 +110,43 @@ def _work_area(x, y):
     return r.left, r.top, r.right, r.bottom
 
 
+class _MissDialog:
+    """正解の文を打つ小さな窓(開発中だけ)。今の入力を入れておくので、直して Enter"""
+
+    def __init__(self, root, items, current, x, y):
+        self.items, self.current, self.done = items, current, False
+        top = tk.Toplevel(root)
+        top.title("正解の文(開発用)")
+        top.attributes("-topmost", True)
+        top.config(bg=BG)
+        tk.Label(top, text="正解の文(Enter で記録 / Esc で正解なしとして記録)", font=SMALL_FONT, fg=DIM, bg=BG).pack(
+            anchor="w", padx=12, pady=(10, 4))
+        self.entry = tk.Entry(top, font=TEXT_FONT, width=48)
+        self.entry.insert(0, items[current]["text"])
+        self.entry.pack(fill="x", padx=12, pady=(0, 12))
+        self.entry.bind("<Return>", lambda e: self.finish(self.entry.get().strip() or None))
+        self.entry.bind("<Escape>", lambda e: self.finish(None))
+        top.protocol("WM_DELETE_WINDOW", lambda: self.finish(None))
+        top.geometry(f"+{x}+{y}")
+        self.top = top
+        top.after(50, self.grab_focus)
+
+    def grab_focus(self):
+        self.top.lift()
+        self.top.focus_force()
+        self.entry.focus_set()
+        self.entry.select_range(0, "end")
+
+    def finish(self, correct):
+        if self.done:
+            return
+        self.done = True
+        try:
+            candidates.log_miss(self.items, self.current, correct)
+        finally:
+            self.top.destroy()
+
+
 def _set_temp_keys(on):
     """↑↓・Enter・Esc を借りる / 返す"""
     for action, key in TEMP_KEYS.items():
@@ -127,6 +166,8 @@ class CandidateWindow:
         self.message_until = None
         self.drag_offset = None
         self.version = None     # 開いたときの候補の版(candidates.choose に渡す)
+        self.items = []         # 開いたときの候補の並び(「この中にない」の記録に使う)
+        self.current = 0
         self.root.after(POLL_MS, self.poll)
 
     # ---- お願いを拾う ----
@@ -180,6 +221,7 @@ class CandidateWindow:
 
     def open(self):
         items, current, self.version = candidates.get()
+        self.items, self.current = items, current
         self.close()
         self.build(items, current)
         if not items or len(items) == 1:
@@ -202,6 +244,13 @@ class CandidateWindow:
         self.message_until = None
         if borrowed:
             _set_temp_keys(False)
+
+    def report_miss(self):
+        """「この中にない」: 窓を閉じて、正解の文を打つ窓を開く"""
+        items, current = self.items, self.current
+        x, y = self.top.winfo_rootx(), self.top.winfo_rooty()
+        self.close()
+        _MissDialog(self.root, items, current, x, y)
 
     def confirm(self, index):
         self.close()
@@ -237,6 +286,10 @@ class CandidateWindow:
             self.rows.append(self.build_row(body, i, item, current))
         for w in (top, body, self.more_above, self.more_below):
             w.bind("<MouseWheel>", self.on_wheel)
+        if candidates.LOG_ENABLED and items:   # 開発中だけ
+            miss = tk.Label(top, text="この中にない(正解を記録)", font=SMALL_FONT, fg=DIM, bg=BG, cursor="hand2")
+            miss.pack(anchor="e", padx=12, pady=(0, 8))
+            miss.bind("<ButtonRelease-1>", lambda e: self.report_miss())
         self.first = 0   # 開いたあとの select で、今の入力が見えるところまでずらす
         self.show_rows()
 

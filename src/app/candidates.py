@@ -16,6 +16,8 @@
     開発中だけ、入れ替えたら _local/dev_logs/candidate_choices.jsonl に一行ずつ記録する(exe化後は残さない)
     {"time", "input": 最初に入力した文, "from": 入れ替える前の文, "to": 選んだ文, "note": 選んだ候補の印(確率・補正前),
      "changes": [[前の言葉, 選んだ言葉], ...], "candidates": [[文, 印], ...]}
+- log_miss(items, current, correct): 開発中だけ。窓に正解が無かったことを記録する(窓の「この中にない」から)
+    "to" は null、"correct" に打ってもらった正解の文(打たなければ null)。changes は今の入力と正解の違い
     窓を開いたあとに次の入力が来ていたら(版が違えば)、見ていた並びと違うので入れ替えない
     取り消しのキーと同じく、入力のあとにカーソルを動かしていると、違うところが消える
 """
@@ -34,6 +36,7 @@ import undo_input
 from paths import CANDIDATE_LOG_JSONL
 
 MAX_ITEMS = 30   # 窓に並べる文の数の上限(今の入力も入れて)
+LOG_ENABLED = CANDIDATE_LOG_JSONL is not None   # 開発中だけ記録する
 
 _lock = threading.Lock()
 _items = []      # 候補の並び。0 番目が最初に入力した文
@@ -107,6 +110,16 @@ def choose(index, version):
     _log_choice(record)
 
 
+def log_miss(items, current, correct):
+    """窓に正解が無かったことを記録する。items / current は窓を開いたときの並び(candidates.get() のもの)"""
+    if not items:
+        return
+    record = {"input": items[0]["text"], "from": items[current]["text"], "to": None, "note": "この中にない",
+              "correct": correct, "candidates": [[i["text"], i["note"]] for i in items]}
+    _log_choice(record)
+    print(f"候補を出す: この中にない(正解: {correct or 'なし'})")
+
+
 def _changes(old, new):
     """old と new で入れ替わったところ [[前の言葉, あとの言葉], ...]"""
     out = []
@@ -120,8 +133,9 @@ def _log_choice(record):
     """入れ替えた記録を一行足す(開発中だけ)。失敗しても入力は止めない"""
     if not CANDIDATE_LOG_JSONL:
         return
+    target = record["to"] if record["to"] is not None else record.get("correct")
     record = {"time": datetime.now().isoformat(timespec="seconds"), **record,
-              "changes": _changes(record["from"], record["to"])}
+              "changes": _changes(record["from"], target) if target else []}
     try:
         os.makedirs(os.path.dirname(CANDIDATE_LOG_JSONL), exist_ok=True)
         with open(CANDIDATE_LOG_JSONL, "a", encoding="utf-8") as f:
