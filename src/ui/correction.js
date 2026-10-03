@@ -5,8 +5,9 @@
 // - モデルのカード: ダウンロード・削除の動きはモデルタブと同じ(model_tab.js の showModelState)
 // - 準備中・準備完了・失敗は、Python から onCorrectionStatus で届く
 // - よく使う言葉: 押すと広がるカードの中に並べる。閉じていても、説明に登録の数を出す
-//   一つのカード = 言葉とよみがな。入力欄から離れたとき・消したときに、まるごと保存する(すぐ効く)
-//   よみがなが空の言葉は LLM に渡さないので、枠を赤くして知らせる
+//   一つのカード = 言葉と読み。入力欄から離れたとき・消したときに、まるごと保存する(すぐ効く)
+//   読みはカタカナ(ひらがなで入れても、保存したときにカタカナになる)
+//   読みが空の言葉は使わないので、枠を赤くして知らせる。読みが同じ言葉も赤くする(保存できない)
 
 const correctionToggle = document.getElementById("llm-correction");
 const vocabList = document.getElementById("vocab-list");
@@ -14,8 +15,8 @@ const vocabList = document.getElementById("vocab-list");
 function showCorrectionToggle(enabled) {
   correctionToggle.checked = enabled;
   document.getElementById("llm-correction-label").textContent = enabled ? "オン" : "オフ";
-  // 句読点補正は入力補正がオンのときだけ動くので、オフの間は薄くして知らせる(スイッチ自体は切り替えられる)
-  for (const id of ["llm-punctuation", "llm-punctuation-timeout-range"]) {
+  // 句読点補正・言い淀みを消すは入力補正がオンのときだけ動くので、オフの間は薄くして知らせる(スイッチ自体は切り替えられる)
+  for (const id of ["llm-punctuation", "llm-punctuation-timeout-range", "remove-stutter"]) {
     document.getElementById(id).closest(".card").classList.toggle("inactive", !enabled);
   }
 }
@@ -60,9 +61,26 @@ function onCorrectionStatus(status) {
 
 // ---- よく使う言葉 ----
 
-function markMissingReading(input) {
-  input.classList.toggle("missing", input.value.trim() === "");
-  input.title = input.classList.contains("missing") ? "よみがなが空のため、LLM には渡しません" : "";
+// ひらがなをカタカナに(Python の llm_vocab.to_katakana と同じ。重なりを見つけるため)
+function toKatakana(s) {
+  return s.normalize("NFKC").trim().replace(/[\u3041-\u3096]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+}
+
+// 空の読みと、ほかの言葉と同じ読みの枠を赤くする
+function markReadings() {
+  const inputs = [...vocabList.querySelectorAll(".vocab-reading")];
+  const count = {};
+  for (const input of inputs) {
+    const k = toKatakana(input.value);
+    if (k) count[k] = (count[k] || 0) + 1;
+  }
+  for (const input of inputs) {
+    const k = toKatakana(input.value);
+    const empty = k === "";
+    const duplicate = !empty && count[k] > 1;
+    input.classList.toggle("missing", empty || duplicate);
+    input.title = empty ? "読みが空のため、使いません" : duplicate ? "ほかの言葉と読みが同じです(一つだけ登録できます)" : "";
+  }
 }
 
 // 言葉ひとつ分のカード。row は { word, reading }
@@ -82,20 +100,20 @@ function createVocabCard(row) {
 
   const right = document.createElement("div");
   right.className = "pair-right";
-  right.innerHTML = `<div class="field-label">よみがな</div>`;
+  right.innerHTML = `<div class="field-label">読み(カタカナ)</div>`;
   const reading = document.createElement("input");
   reading.type = "text";
   reading.className = "vocab-reading";
   reading.value = row.reading;
-  reading.placeholder = "話したときの読み(例: きゅうせんどう)";
-  markMissingReading(reading);
-  reading.addEventListener("input", () => markMissingReading(reading));
+  reading.placeholder = "話したときの読み(例: キュウセンドウ)";
+  reading.addEventListener("input", markReadings);
   right.append(reading);
 
   const remove = iconButton("&#xE74D;", "この言葉を消す");
   remove.classList.add("pair-delete");
   remove.addEventListener("click", () => {
     card.remove();
+    markReadings();
     saveVocab();
   });
 
@@ -113,6 +131,15 @@ function collectVocabRows() {
 async function saveVocab() {
   const result = await window.pywebview.api.save_vocab(collectVocabRows());
   showError(result.error);
+  if (result.rows) {
+    // 保存した読み(カタカナにそろえたもの)を、入力欄にも映す。言葉が空のカードは残す(書きかけのため)
+    const filled = [...vocabList.querySelectorAll(".pair-card")].filter((card) =>
+      card.querySelector(".vocab-word").value.trim() !== "");
+    filled.forEach((card, i) => {
+      if (result.rows[i]) card.querySelector(".vocab-reading").value = result.rows[i].reading;
+    });
+  }
+  markReadings();
   showVocabSummary();
 }
 
@@ -121,6 +148,7 @@ function renderVocab(rows) {
   for (const row of rows) {
     vocabList.append(createVocabCard(row));
   }
+  markReadings();
   showVocabSummary();
 }
 
@@ -130,7 +158,7 @@ function showVocabSummary() {
   const missing = rows.filter((row) => row.reading.trim() === "").length;
   document.getElementById("vocab-summary").textContent = rows.length === 0
     ? "まだ登録していません"
-    : `${rows.length} 件を登録${missing > 0 ? `(よみがなが空で使われないもの: ${missing} 件)` : ""}`;
+    : `${rows.length} 件を登録${missing > 0 ? `(読みが空で使われないもの: ${missing} 件)` : ""}`;
 }
 
 let vocabNoticeTimer = null;
@@ -154,7 +182,7 @@ document.getElementById("btn-add-vocab").addEventListener("click", () => {
   card.querySelector(".vocab-word").focus();
 });
 
-// 音声辞書の変換後のうち、前回取り込んだあとに増えたものを、よみがな空で一番上に足す
+// 音声辞書の変換後のうち、前回取り込んだあとに増えたものを、読みを空にして一番上に足す
 document.getElementById("btn-import-vocab").addEventListener("click", async () => {
   await saveVocab();   // 打ちかけの内容を先に残す(取り込みは保存されている一覧に足すため)
   const result = await window.pywebview.api.import_vocab_from_dict();
@@ -162,7 +190,7 @@ document.getElementById("btn-import-vocab").addEventListener("click", async () =
   if (result.error) return;
   renderVocab(result.rows);
   showVocabNotice(result.added > 0
-    ? `${result.added} 件を登録しました。よみがなを入れると、補正に使われます`
+    ? `${result.added} 件を登録しました。読みを入れると、補正に使われます`
     : "新しく登録できる言葉はありません(前回取り込んだあとに、音声辞書の変換後が増えていません)");
 });
 
@@ -177,6 +205,8 @@ async function loadCorrection() {
   showCorrectionToggle(s.values.llm_correction);
   bindToggle(document.getElementById("llm-punctuation"), document.getElementById("llm-punctuation-label"),
     "llm_punctuation", s.values.llm_punctuation);
+  bindToggle(document.getElementById("remove-stutter"), document.getElementById("remove-stutter-label"),
+    "remove_stutter", s.values.remove_stutter);
 
   // 待つ時間の上限(スライダーと数字。保存のしくみは settings.js の bindSlider)
   const timeoutRange = document.getElementById("llm-timeout-range");

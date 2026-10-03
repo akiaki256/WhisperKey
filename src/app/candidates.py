@@ -4,7 +4,7 @@
 最後に入力した文と、その候補の並びを持っておき、選ばれた候補に入れ替える。窓は candidate_window.py。
 候補の並び(IME の次候補のつもり):
   1. 今の入力
-  2. 同音異義語の確かめで確かめた場所を、一か所だけ変えた文(その言葉の確率が高い順。homophone.take_alternatives)
+  2. 同音異義語の確かめで確かめた場所を、一か所か二か所変えた文(確率が高い順。homophone.take_alternatives)
   3. 補正する前の文(音声辞書を通したあと、LLM の補正の前。今の入力と違うときだけ)
   句読点補正が動いたときは、2・3 の句読点も今の入力とそろえてある(transcribe.py)
 
@@ -26,6 +26,8 @@ import history
 import paste
 import undo_input
 
+MAX_ITEMS = 30   # 窓に並べる文の数の上限(今の入力も入れて)
+
 _lock = threading.Lock()
 _items = []      # 候補の並び。0 番目が最初に入力した文
 _current = 0     # 今、入力されている候補の番号
@@ -43,7 +45,7 @@ def _spans(base, text):
 
 def set_last(text, before_correction, alternatives):
     """text: 入力した文。before_correction: LLM の補正の前の文
-    alternatives: 一か所だけ変えた文と確率 [(文, 確率), ...](homophone.take_alternatives() から)
+    alternatives: 一か所か二か所変えた文と確率 [(文, 確率), ...](homophone.take_alternatives() から)
     違うところは text と比べて出し直す(句読点補正や「。」を消す仕上げで、位置がずれるため)"""
     global _items, _current
     items = [{"text": text, "spans": [], "note": ""}]
@@ -54,6 +56,7 @@ def set_last(text, before_correction, alternatives):
             items.append({"text": alt, "spans": _spans(text, alt), "note": f"{p:.0%}"})
     if before_correction and before_correction not in seen:
         items.append({"text": before_correction, "spans": _spans(text, before_correction), "note": "補正前"})
+    items = items[:MAX_ITEMS]
     global _version
     with _lock:
         _items, _current = items, 0

@@ -207,6 +207,17 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-text">
+            <label class="card-title" for="remove-stutter">言い淀みを消す</label>
+            <div class="card-desc">「洗、洗濯物」の「洗、」のような言いかけの切れ端を消します。「パン、パンケーキ」のように、それだけで言葉になるものは消しません。消す前の文は「候補を出す」の窓に出ます</div>
+          </div>
+          <div class="card-control">
+            <span id="remove-stutter-label" class="toggle-label"></span>
+            <input type="checkbox" id="remove-stutter" class="toggle">
+          </div>
+        </div>
+
         <!-- よく使う言葉。押すと広がり、中に登録欄が並ぶ(correction.js が言葉の数だけカードを作る) -->
         <details class="card expander" id="vocab-expander">
           <summary>
@@ -219,7 +230,7 @@
           </summary>
           <div class="vocab-body">
             <div class="section-head">
-              <p class="section-desc">補正の手がかりとして LLM に渡します。よみがなが空の言葉は使われません</p>
+              <p class="section-desc">補正の手がかりとして使います。読み(カタカナ)が空の言葉は使われません。読みが同じ言葉は一つだけ登録できます</p>
               <button id="btn-add-vocab" class="accent"><span class="icon">&#xE710;</span> 追加</button>
             </div>
             <p id="vocab-notice" class="infobar" hidden></p>

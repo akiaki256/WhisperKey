@@ -8,6 +8,7 @@
   窓はフォーカスを奪わない(入力先のアプリにフォーカスを残すため)ので、キーは窓には届かない
   Enter を借りっぱなしにしないよう、IDLE_CLOSE_SECONDS 触らなかったら閉じる
 - 最初の入力と違うところに背景色をつける
+- 一度に見せるのは VISIBLE_ROWS 行まで。選んでいる行が外に出たら、見せる範囲をずらす(ホイールでも動かせる)
 - 見た目は操作パネルと同じ(暗い色、角丸と白い枠)。つまんで(見出しをドラッグして)動かせて、位置を config に覚える
   覚えるのは「横の真ん中」と「下の端」(candidates_x / candidates_y)。候補の長さで窓の幅が変わっても同じ場所に出るように
   覚えていなければ、画面の中央下に出す。出すたびに、窓全体をモニターの見える範囲(タスクバーを除く)に収める
@@ -35,6 +36,7 @@ POLL_MS = 30
 IDLE_CLOSE_SECONDS = 7
 MESSAGE_SECONDS = 3
 BOTTOM_MARGIN = 140   # 覚えていないとき、画面の下の端からどれだけ上に出すか
+VISIBLE_ROWS = 10     # 一度に見せる行の数
 
 # 窓が開いている間だけ借りるキー(key_shortcut.ACTIONS と合わせる)
 TEMP_KEYS = {"cand_up": "up", "cand_down": "down", "cand_ok": "enter", "cand_cancel": "escape"}
@@ -119,6 +121,7 @@ class CandidateWindow:
         self.root = root
         self.top = None
         self.rows = []          # 行ごとの {"frame", "bar", "labels": [(ラベル, 違うところか)]}
+        self.first = 0          # 見せている一番上の行
         self.selected = 0
         self.last_touch = 0.0
         self.message_until = None
@@ -195,6 +198,7 @@ class CandidateWindow:
         self.top.destroy()
         self.top = None
         self.rows = []
+        self.first = 0
         self.message_until = None
         if borrowed:
             _set_temp_keys(False)
@@ -223,10 +227,18 @@ class CandidateWindow:
         for w in (header, *header.winfo_children()):
             self.bind_drag(w)
 
+        self.more_above = tk.Label(top, text="", font=SMALL_FONT, fg=DIM, bg=BG)
+        self.more_above.pack(fill="x", padx=12)
         body = tk.Frame(top, bg=BG)
-        body.pack(fill="both", padx=6, pady=(0, 8))
+        body.pack(fill="both", padx=6)
+        self.more_below = tk.Label(top, text="", font=SMALL_FONT, fg=DIM, bg=BG)
+        self.more_below.pack(fill="x", padx=12, pady=(0, 8))
         for i, item in enumerate(items):
             self.rows.append(self.build_row(body, i, item, current))
+        for w in (top, body, self.more_above, self.more_below):
+            w.bind("<MouseWheel>", self.on_wheel)
+        self.first = 0   # 開いたあとの select で、今の入力が見えるところまでずらす
+        self.show_rows()
 
         top.update_idletasks()
         hwnd = _user32.GetParent(top.winfo_id())
@@ -235,9 +247,39 @@ class CandidateWindow:
         _dwm_set(hwnd, DWMWA_BORDER_COLOR, BORDER_WHITE)
         self.place()
 
+    def show_rows(self):
+        """self.first から VISIBLE_ROWS 行だけ見せる。上下に隠れている数も出す"""
+        for row in self.rows:
+            row["frame"].pack_forget()
+        for row in self.rows[self.first:self.first + VISIBLE_ROWS]:
+            row["frame"].pack(fill="x", pady=1)
+        above, below = self.first, max(0, len(self.rows) - self.first - VISIBLE_ROWS)
+        self.more_above.config(text=f"▲ ほかに {above} 件" if above else "")
+        self.more_below.config(text=f"▼ ほかに {below} 件" if below else "")
+
+    def scroll_to(self, index):
+        """index の行が見えるように、見せる範囲をずらす"""
+        first = self.first
+        if index < first:
+            first = index
+        elif index >= first + VISIBLE_ROWS:
+            first = index - VISIBLE_ROWS + 1
+        if first != self.first:
+            self.first = first
+            self.show_rows()
+            self.place()
+
+    def on_wheel(self, event):
+        self.last_touch = time.monotonic()
+        step = -1 if event.delta > 0 else 1
+        first = min(max(self.first + step, 0), max(0, len(self.rows) - VISIBLE_ROWS))
+        if first != self.first:
+            self.first = first
+            self.show_rows()
+            self.place()
+
     def build_row(self, parent, index, item, current):
         frame = tk.Frame(parent, bg=BG, cursor="hand2")
-        frame.pack(fill="x", pady=1)
         bar = tk.Frame(frame, bg=BG, width=3)
         bar.pack(side="left", fill="y")
         number = tk.Label(frame, text=str(index + 1), font=NUMBER_FONT, fg=DIM, bg=BG, width=2)
@@ -263,6 +305,7 @@ class CandidateWindow:
         labels.append((note_label, False))
 
         for w in (frame, bar, *[l for l, _ in labels]):
+            w.bind("<MouseWheel>", self.on_wheel)
             w.bind("<Enter>", lambda e, i=index: self.hover(i, True))
             w.bind("<Leave>", lambda e, i=index: self.hover(i, False))
             w.bind("<ButtonRelease-1>", lambda e, i=index: self.confirm(i))
@@ -281,6 +324,7 @@ class CandidateWindow:
         if 0 <= old < len(self.rows):
             self.paint(old, BG)
         self.paint(index, ROW_SELECTED)
+        self.scroll_to(index)
 
     def hover(self, index, entering):
         self.last_touch = time.monotonic()
