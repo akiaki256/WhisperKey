@@ -64,6 +64,10 @@ HISTORY_JSON = os.path.join(APP_DIR, "history.json")
 LLM_VOCAB_CSV = os.path.join(APP_DIR, "llm_vocab.csv")                      # 入力補正の「よく使う言葉」
 LLM_VOCAB_IMPORTED_JSON = os.path.join(APP_DIR, "llm_vocab_imported.json")  # 辞書から取り込んだ変換後の覚え書き
 
+# 開発中だけ残す記録(exe化後は None で、残さない)
+# 「候補を出す」で入れ替えた記録(補正を見直すため)。_local/dev_logs に置く
+CANDIDATE_LOG_JSONL = None if FROZEN else os.path.join(PROJECT_ROOT, "_local", "dev_logs", "candidate_choices.jsonl")
+
 # 配布フォルダ内の実行ファイル(exe化後のみ使用)
 RESTART_BAT = os.path.join(APP_DIR, "restart.bat")
 

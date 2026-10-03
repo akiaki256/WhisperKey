@@ -13,18 +13,25 @@
 - get(): (候補の並び, 今の入力の番号, 版)。候補は {"text", "spans": [(始め, 長さ)], "note"}
     spans は最初の入力と違うところ(窓で背景色をつける)。版は候補が新しくなるたびに増える
 - choose(i, 版): i 番目の候補に入れ替える(Backspace で今の入力を消して、貼り付ける)。入力履歴の一番新しいものも書き換える
+    開発中だけ、入れ替えたら _local/dev_logs/candidate_choices.jsonl に一行ずつ記録する(exe化後は残さない)
+    {"time", "input": 最初に入力した文, "from": 入れ替える前の文, "to": 選んだ文, "note": 選んだ候補の印(確率・補正前),
+     "changes": [[前の言葉, 選んだ言葉], ...], "candidates": [[文, 印], ...]}
     窓を開いたあとに次の入力が来ていたら(版が違えば)、見ていた並びと違うので入れ替えない
     取り消しのキーと同じく、入力のあとにカーソルを動かしていると、違うところが消える
 """
 
 import difflib
+import json
+import os
 import threading
+from datetime import datetime
 
 import keyboard
 
 import history
 import paste
 import undo_input
+from paths import CANDIDATE_LOG_JSONL
 
 MAX_ITEMS = 30   # 窓に並べる文の数の上限(今の入力も入れて)
 
@@ -87,6 +94,8 @@ def choose(index, version):
         if not (0 <= index < len(_items)) or index == _current:
             return
         old, new = _items[_current]["text"], _items[index]["text"]
+        record = {"input": _items[0]["text"], "from": old, "to": new, "note": _items[index]["note"],
+                  "candidates": [[i["text"], i["note"]] for i in _items]}
         _current = index
     undo_input.wait_for_modifiers_released()   # Enter などを押したまま Backspace を送ると組み合わさるため
     for _ in range(len(old)):
@@ -95,3 +104,27 @@ def choose(index, version):
     undo_input.remember(new)          # 取り消しのキーで、入れ替えたあとの文を消せるように
     history.replace_latest(old, new)  # 直前の入力として LLM に渡るのが、選んだ文になるように
     print(f"候補を出す: {old} → {new}")
+    _log_choice(record)
+
+
+def _changes(old, new):
+    """old と new で入れ替わったところ [[前の言葉, あとの言葉], ...]"""
+    out = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes():
+        if op != "equal":
+            out.append([old[i1:i2], new[j1:j2]])
+    return out
+
+
+def _log_choice(record):
+    """入れ替えた記録を一行足す(開発中だけ)。失敗しても入力は止めない"""
+    if not CANDIDATE_LOG_JSONL:
+        return
+    record = {"time": datetime.now().isoformat(timespec="seconds"), **record,
+              "changes": _changes(record["from"], record["to"])}
+    try:
+        os.makedirs(os.path.dirname(CANDIDATE_LOG_JSONL), exist_ok=True)
+        with open(CANDIDATE_LOG_JSONL, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except OSError as e:
+        print(f"候補を出す: 入れ替えの記録を残せませんでした: {e}")
