@@ -6,4 +6,4 @@ WhisperKey の版(本体の窓のタイトルバーに出す)
 - LICENSE.txt(使用許諾契約書の版)
 """
 
-VERSION = "5.0.0"
+VERSION = "5.1.0"

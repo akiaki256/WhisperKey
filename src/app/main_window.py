@@ -222,7 +222,7 @@ class Api:
             "restart_needed": _restart_needed(values),
             # Windows の起動時に立ち上げる(本当の値はレジストリ。開発中は使えない)
             "autostart": {"available": autostart.available(), "enabled": autostart.is_enabled()},
-            # タイトルバー: アイコンと「WhisperKey GPU v5.0.0」
+            # タイトルバー: アイコンと「WhisperKey GPU v<版>」
             "app_title": f"WhisperKey {EDITION.upper()} v{VERSION}",
             "app_icon": _app_icon_data_url(),
         }
