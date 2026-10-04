@@ -152,6 +152,8 @@ def defaults():
         # 句読点補正(入力補正がオンのときだけ動く)。Whisper の句読点をはがして、LLM に「、」「。」を付け直させる
         "llm_punctuation": False,
         "llm_punctuation_timeout": 2.0,
+        # 言い淀みを消す(入力補正がオンのときだけ動く)。「洗、洗濯物」→「洗濯物」。消す前の文は候補の窓に並ぶ
+        "remove_stutter": False,
     }
 
 
@@ -264,6 +266,7 @@ def normalize(raw):
         "llm_timeout": _fix_llm_timeout(merged["llm_timeout"], d["llm_timeout"]),
         "llm_punctuation": _fix_bool(merged["llm_punctuation"], d["llm_punctuation"]),
         "llm_punctuation_timeout": _fix_llm_timeout(merged["llm_punctuation_timeout"], d["llm_punctuation_timeout"]),
+        "remove_stutter": _fix_bool(merged["remove_stutter"], d["remove_stutter"]),
     }
 
 

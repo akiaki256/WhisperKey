@@ -58,7 +58,7 @@ EDITABLE_KEYS = {
     "volume_threshold", "silence_duration", "audio_device_name", "model_size", "theme",
     "history_enabled", "push_to_talk", "remove_periods", "remove_commas", "indicator_mode",
     "sound_startup", "sound_on", "sound_off", "sound_padding", "clipboard_private",
-    "llm_correction", "llm_timeout", "llm_punctuation", "llm_punctuation_timeout",
+    "llm_correction", "llm_timeout", "llm_punctuation", "llm_punctuation_timeout", "remove_stutter",
 }
 
 # 窓の下地の色(画面の読み込みが終わるまでの一瞬に見える色)。style.css の --bg と合わせる
@@ -222,7 +222,7 @@ class Api:
             "restart_needed": _restart_needed(values),
             # Windows の起動時に立ち上げる(本当の値はレジストリ。開発中は使えない)
             "autostart": {"available": autostart.available(), "enabled": autostart.is_enabled()},
-            # タイトルバー: アイコンと「WhisperKey GPU v5.0.0」
+            # タイトルバー: アイコンと「WhisperKey GPU v<版>」
             "app_title": f"WhisperKey {EDITION.upper()} v{VERSION}",
             "app_icon": _app_icon_data_url(),
         }
@@ -384,16 +384,19 @@ class Api:
     # ---- 入力補正の「よく使う言葉」 ----
 
     def get_vocab(self):
-        """[{"word": 言葉, "reading": よみがな}, ...]"""
+        """[{"word": 言葉, "reading": 読み(カタカナ)}, ...]"""
         return llm_vocab.get_rows()
 
     def save_vocab(self, rows):
-        """一覧をまるごと保存する"""
+        """一覧をまるごと保存する。保存したあとの一覧(読みはカタカナにそろえたもの)を返す"""
         try:
             llm_vocab.save_rows(rows)
+        except llm_vocab.DuplicateReading as e:
+            same = "、".join(f"「{r}」({' / '.join(words)})" for r, words in e.args[0])
+            return {"error": f"読みが同じ言葉は一つだけ登録できます: {same}。どちらかの読みを変えるか、消してください(保存していません)"}
         except OSError as e:
             return {"error": f"よく使う言葉の保存に失敗しました: {e}"}
-        return {}
+        return {"rows": llm_vocab.get_rows()}
 
     def import_vocab_from_dict(self):
         """音声辞書の変換後のうち、前回取り込んだあとに増えたものを足す。足した数と、足したあとの一覧を返す"""

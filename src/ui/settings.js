@@ -120,7 +120,7 @@ async function loadSettings() {
 
   applyTheme(s.values.theme);
 
-  // タイトルバー: アイコンと「WhisperKey GPU v5.0.0」(アイコンが読めなければ文字だけ)
+  // タイトルバー: アイコンと「WhisperKey GPU v<版>」(アイコンが読めなければ文字だけ)
   document.getElementById("app-title").textContent = s.app_title;
   if (s.app_icon) {
     const icon = document.getElementById("app-icon");

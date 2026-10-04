@@ -88,7 +88,7 @@ def add(text, raw=None):
 
 def replace_latest(old_text, new_text):
     """一番新しい入力が old_text なら、new_text に書き換える(「候補を出す」で別の候補を選んだとき)
-    直前の入力として LLM に渡るのが、キミの選んだ文になるように。補正する前の文(raw)はそのまま残す"""
+    直前の入力として LLM に渡るのが、ユーザーの選んだ文になるように。補正する前の文(raw)はそのまま残す"""
     with _lock:
         if not _entries or _entries[0].get("text") != old_text:
             return

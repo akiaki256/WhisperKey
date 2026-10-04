@@ -18,6 +18,7 @@ import undo_input
 import model
 import paste
 import punctuate
+import vocab_match
 from key_shortcut import MainStateManager
 
 state_manager = MainStateManager()
@@ -42,13 +43,32 @@ HALLUCINATION_PHRASES = [
         "ありがとうございました。",
 ]
 
-NBEST_BEAM = 5   # 書き分けを何通り取るか(ビームサーチの幅)
+NBEST_BEAM = 5   # Whisper の 2〜5 位を何通り取るか(ビームサーチの幅)
+
+# Whisper によく使う言葉のヒントを渡すモデル
+HINT_MODELS = {"large-v3", "large-v3-turbo"}
+
+TRANSCRIBE_OPTIONS = dict(language=LANGUAGE,
+                          beam_size=1,           # デフォルト5→1で高速化
+                          best_of=1,             # デフォルト5→1で高速化
+                          temperature=0,         # 安定した出力
+                          vad_filter=True,       # 音声検出フィルター
+                          vad_parameters=dict(min_silence_duration_ms=500,  # 無音判定時間
+                                              speech_pad_ms=200))           # 音声前後の余白
 
 
-def whisper_nbest(filepath):
-    """Whisper の書き分け(ビームサーチの 1〜NBEST_BEAM 位の文)。入力補正の「同音異義語の確かめ」で使う
+def transcribe_text(filepath, hotwords=None):
+    """文字起こしした文(区切りごとの文をつないだもの)。hotwords: Whisper に渡すヒント(無ければ None)"""
+    segments, _ = model.get_model().transcribe(filepath, hotwords=hotwords, **TRANSCRIBE_OPTIONS)
+    # 日本語だけなので、区切りの間に空白は入れない。英字どうしが並ぶときだけ空白でつなぐ
+    return join_segments([segment.text for segment in segments])
+
+
+def whisper_nbest(filepath, hotwords=None):
+    """Whisper の 2〜5 位(ビームサーチの 1〜NBEST_BEAM 位の文)。入力補正の「同音異義語の確かめ」で使う
     faster-whisper の transcribe() は 1 位しか返さないので、中の generate を直接呼ぶ。VAD は通さず、頭の 30 秒を 1 枠で
-    (kotoba で +0.2 秒くらい。取れなかったら空で、確かめは辞書の候補だけになる)"""
+    (kotoba で +0.2 秒くらい。取れなかったら空で、確かめは辞書の候補だけになる)
+    hotwords: Whisper に渡すヒント(文字起こしと同じもの。無ければ None)"""
     try:
         from faster_whisper.audio import decode_audio, pad_or_trim
         from faster_whisper.tokenizer import Tokenizer
@@ -57,16 +77,34 @@ def whisper_nbest(filepath):
         segment = pad_or_trim(fe(decode_audio(filepath, sampling_rate=fe.sampling_rate))[:, : fe.nb_max_frames])
         tokenizer = Tokenizer(whisper.hf_tokenizer, whisper.model.is_multilingual, task="transcribe",
                               language=LANGUAGE)
-        prompt = whisper.get_prompt(tokenizer, [], without_timestamps=True)
+        prompt = whisper.get_prompt(tokenizer, [], without_timestamps=True, hotwords=hotwords)
+        # 長さはヒントの前置きも込みで数える(ヒントで枠を使い切って、本文が空にならないように)
         result = whisper.model.generate(whisper.encode(segment), [prompt], beam_size=NBEST_BEAM,
-                                        num_hypotheses=NBEST_BEAM, max_length=224,
+                                        num_hypotheses=NBEST_BEAM, max_length=min(448, len(prompt) + 224),
                                         suppress_blank=True, suppress_tokens=[-1])[0]
         hyps = [tokenizer.decode([t for t in ids if t < tokenizer.eot]).strip() for ids in result.sequences_ids]
-        print(f"Whisper の書き分け: {' / '.join(dict.fromkeys(hyps))}")   # 同じ文は一つにまとめて出す
+        print(f"Whisper の 2〜5 位: {' / '.join(dict.fromkeys(hyps))}")   # 同じ文は一つにまとめて出す
         return hyps
     except Exception as e:
-        print(f"Whisper の書き分けを取れませんでした(同音異義語の確かめは辞書の候補だけで): {e}")
+        print(f"Whisper の 2〜5 位を取れませんでした(同音異義語の確かめは辞書の候補だけで): {e}")
         return []
+
+
+def hinted_transcription(filepath, text, nbest, vocabulary):
+    """Whisper によく使う言葉のヒントを渡して、もう一回文字起こしする(HINT_MODELS のときだけ)
+    一回目の文と 2〜5 位の読みに近いよく使う言葉を選んで渡し、ヒントに当たる変化だけを使う
+    (文, 2〜5 位, 渡したヒント) を返す。ヒントが無ければ一回目のまま"""
+    if config.get("model_size") not in HINT_MODELS or not vocabulary or not homophone.is_ready():
+        return text, nbest, []
+    picked = vocab_match.select_hints(homophone.tagger(), [text] + list(nbest), vocabulary)
+    if not picked:
+        return text, nbest, []
+    hints = [k for k, _ in picked]
+    hotwords = "、".join(hints)
+    second = transcribe_text(filepath, hotwords)
+    merged = vocab_match.merge_hinted(text, second, hints)
+    print(f"Whisper のヒント: {hotwords} → {second}" + (f"(使ったのは {merged})" if merged != second else ""))
+    return merged, whisper_nbest(filepath, hotwords) or nbest, hints
 
 
 PERIODS = "。．"   # 「。」を消すときに消すもの
@@ -160,19 +198,8 @@ def whisper_function(wav_queue):
             print(f"処理開始: {filepath}")
 
             t = time.monotonic()
-            segments, info = model.get_model().transcribe(filepath,
-                                                language=LANGUAGE,
-                                                beam_size=1,           # デフォルト5→1で高速化
-                                                best_of=1,            # デフォルト5→1で高速化  
-                                                temperature=0,        # 安定した出力
-                                                vad_filter=True,      # 音声検出フィルター
-                                                vad_parameters=dict(min_silence_duration_ms=500,  # 無音判定時間
-                                                                    speech_pad_ms=200)            # 音声前後の余白
-                                                )
-        
-            # テキストを結合(日本語だけなので、区切りの間に空白は入れない。英字どうしが並ぶときだけ空白でつなぐ)
-            text = join_segments([segment.text for segment in segments])
-            steps.append(("文字起こし", time.monotonic() - t))   # segments は読み出したときに文字起こしが進むので、つないだあとで測る
+            text = transcribe_text(filepath)
+            steps.append(("文字起こし", time.monotonic() - t))
 
             ## ハルシネーションフレーズを除去
             filtered_text = filter_hallucination(text)
@@ -192,15 +219,30 @@ def whisper_function(wav_queue):
             elif result:  # 空文字でない場合のみ貼り付け
                 # 入力補正(GPU版、オンのとき)。音声実行の判定は直す前の文で済ませてある
                 # (LLM が合言葉を言い換えて、実行されなくなるのを防ぐ)
-                # 同音異義語の確かめのために、Whisper の書き分けも渡す(補正が動くときだけ取る)
+                # 同音異義語の確かめのために、Whisper の 2〜5 位も渡す(補正が動くときだけ取る)
+                # よく使う言葉に読みが近いところがあれば、Whisper にヒントを渡してもう一回文字起こしする
                 nbest = []
+                vocabulary = llm_vocab.get_current()
+                to_check = result
                 if llm_correct.will_correct():
                     t = time.monotonic()
                     nbest = whisper_nbest(filepath)
-                    steps.append(("書き分け", time.monotonic() - t))
-                fixed = llm_correct.correct(result, llm_vocab.get_current(), raw=filtered_text, nbest=nbest)
-                steps += list(llm_correct.timings.items())   # 補正・確かめ・句読点(動いたものだけ)
-                # 「候補を出す」の候補(同音異義語の確かめの「一か所だけ変えた文」と、補正する前の文)
+                    steps.append(("2〜5 位", time.monotonic() - t))
+                    t = time.monotonic()
+                    hinted, nbest, hints = hinted_transcription(filepath, filtered_text, nbest, vocabulary)
+                    if hints:
+                        steps.append(("ヒント", time.monotonic() - t))
+                        if hinted != filtered_text:
+                            filtered_text = hinted
+                            result = convert_dict.convert_text(filtered_text, convert_dict.get_current())
+                    # 言い淀みを消す(設定でオンのとき)。消す前の文は「候補を出す」の窓に出る(補正前として)
+                    if config.get("remove_stutter"):
+                        to_check = homophone.remove_stutter(result)
+                        if to_check != result:
+                            print(f"言い淀みを消す: {result} → {to_check}")
+                fixed = llm_correct.correct(to_check, vocabulary, raw=filtered_text, nbest=nbest)
+                steps += list(llm_correct.timings.items())   # 確かめ・句読点(動いたものだけ)
+                # 「候補を出す」の候補(同音異義語の確かめの窓の文と、補正する前の文)
                 # 句読点補正が動いたら、候補の句読点も入力する文とそろえる
                 alternatives = [(t, p) for t, p, _ in homophone.take_alternatives()]
                 before_correction = result
