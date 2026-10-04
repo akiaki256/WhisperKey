@@ -245,7 +245,7 @@ def find(tagger, text, words):
             orig = text[start:end]
             if not orig.strip() or orig[0] in "・、 " or orig[-1] in "・、 ":
                 continue
-            # 助詞・助動詞で始まる・終わるところは見ない(「の → ゆの」のような、短い言葉への引っかかりを防ぐ)
+            # 助詞・助動詞で始まる・終わるところは見ない(「の → ノート」のような、短い言葉への引っかかりを防ぐ)
             if toks[i][2][0] in FUNCTION_POS or toks[j - 1][2][0] in FUNCTION_POS:
                 continue
             hits = []
