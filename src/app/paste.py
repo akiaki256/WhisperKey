@@ -43,7 +43,9 @@ def set_clipboard(text, private):
     _open_clipboard()
     try:
         win32clipboard.EmptyClipboard()
-        win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
+        # 文字のまま渡すと、数字だけの文(「1447」など)を pywin32 がハンドルの番号として受け取り、落ちる
+        # UTF-16 のバイト列(終わりの 0 つき)にして渡す
+        win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text.encode("utf-16-le") + b"\0\0")
         if private:
             win32clipboard.SetClipboardData(_EXCLUDE, _DWORD_ZERO)  # 中身は何でもよく、印があること自体に意味がある
             win32clipboard.SetClipboardData(_HISTORY, _DWORD_ZERO)
