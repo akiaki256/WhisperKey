@@ -93,18 +93,23 @@ def whisper_nbest(filepath, hotwords=None):
 def hinted_transcription(filepath, text, nbest, vocabulary):
     """Whisper によく使う言葉のヒントを渡して、もう一回文字起こしする(HINT_MODELS のときだけ)
     一回目の文と 2〜5 位の読みに近いよく使う言葉を選んで渡し、ヒントに当たる変化だけを使う
-    (文, 2〜5 位, 渡したヒント) を返す。ヒントが無ければ一回目のまま"""
+    (文, 2〜5 位, 渡したヒント) を返す。ヒントが無ければ一回目のまま
+    思わぬエラーのときも一回目のまま(入力は止めない)"""
     if config.get("model_size") not in HINT_MODELS or not vocabulary or not homophone.is_ready():
         return text, nbest, []
-    picked = vocab_match.select_hints(homophone.tagger(), [text] + list(nbest), vocabulary)
-    if not picked:
+    try:
+        picked = vocab_match.select_hints(homophone.tagger(), [text] + list(nbest), vocabulary)
+        if not picked:
+            return text, nbest, []
+        hints = [k for k, _ in picked]
+        hotwords = "、".join(hints)
+        second = transcribe_text(filepath, hotwords)
+        merged = vocab_match.merge_hinted(text, second, hints)
+        print(f"Whisper のヒント: {hotwords} → {second}" + (f"(使ったのは {merged})" if merged != second else ""))
+        return merged, whisper_nbest(filepath, hotwords) or nbest, hints
+    except Exception as e:
+        print(f"Whisper のヒント: エラー(一回目の文のまま): {e}")
         return text, nbest, []
-    hints = [k for k, _ in picked]
-    hotwords = "、".join(hints)
-    second = transcribe_text(filepath, hotwords)
-    merged = vocab_match.merge_hinted(text, second, hints)
-    print(f"Whisper のヒント: {hotwords} → {second}" + (f"(使ったのは {merged})" if merged != second else ""))
-    return merged, whisper_nbest(filepath, hotwords) or nbest, hints
 
 
 PERIODS = "。．"   # 「。」を消すときに消すもの

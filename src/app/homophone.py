@@ -195,17 +195,21 @@ def _is_word(text, s, e):
 def remove_stutter(text):
     """言い淀みの切れ端を消す(洗、洗濯物 → 洗濯物、ケスト、ケストリオン → ケストリオン)。
     切れ端がそれだけで言葉として成り立つもの・助詞・数字は消さない。切れ端のあとの読点・空白・…も消す。
-    辞書を読めていなければ、そのまま返す"""
+    辞書を読めていなければ、そのまま返す。思わぬエラーのときも、そのまま返す(入力は止めない)"""
     if not is_ready() or not text:
         return text
     out = text
-    for s, e in sorted(_stutter_spans(text), reverse=True):
-        if _is_word(text, s, e):
-            continue
-        j = e
-        while j < len(out) and out[j] in "、,，…・ 　.":
-            j += 1
-        out = out[:s] + out[j:]
+    try:
+        for s, e in sorted(_stutter_spans(text), reverse=True):
+            if _is_word(text, s, e):
+                continue
+            j = e
+            while j < len(out) and out[j] in "、,，…・ 　.":
+                j += 1
+            out = out[:s] + out[j:]
+    except Exception as e:
+        print(f"言い淀みを消す: エラー(消さずに入力): {e}")
+        return text
     return out
 
 
@@ -736,9 +740,13 @@ def check(base_url, text, raw, nbest, context_lines, vocabulary, deadline):
     except Exception as e:   # 候補を出すところ(MeCab など)の思わぬエラーでも、入力は止めない
         print(f"同音異義語の確かめ: エラー(そこまでの文で入力): {e}")
     print(f"同音異義語の確かめ: {n_places} か所を {time.monotonic() - started:.2f} 秒で確かめた")
-    final = to_registered(text)
-    window = [(to_registered(t), p, span) for t, p, span in _make_alternatives(text)]
-    if final != text:
-        window.insert(0, (text, 1.0, (0, 0)))   # 登録した書き方に戻す前の文(元の言葉が残ったもの)も窓に
+    try:
+        final = to_registered(text)
+        window = [(to_registered(t), p, span) for t, p, span in _make_alternatives(text)]
+        if final != text:
+            window.insert(0, (text, 1.0, (0, 0)))   # 登録した書き方に戻す前の文(元の言葉が残ったもの)も窓に
+    except Exception as e:   # ここでの思わぬエラーでも、入力は止めない(窓の候補は無し)
+        print(f"同音異義語の確かめ: 仕上げでエラー(確かめた文のまま入力): {e}")
+        final, window = text, []
     _alternatives = window
     return final
