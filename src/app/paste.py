@@ -61,4 +61,23 @@ def paste(text):
         # 印は付けられないが、貼り付けは失敗させない
         print(f"クリップボードへの書き込みに失敗(印なしで貼り付けます): {e}")
         pyperclip.copy(text)
-    keyboard.send('ctrl+v')
+    send_paste_keys()
+
+
+# Ctrl を押してから V を押すまで、V を離してから Ctrl を離すまでの間(秒)
+_PASTE_KEY_GAP = 0.05
+
+
+def send_paste_keys():
+    """
+    Ctrl+V を、指で押すときのように少し間をあけて送る
+    キー入力を一度受け取って出し直すソフト(キー配列の変更など)を使っていると、
+    一瞬で 4 つ送った場合に V だけ先に届き、Ctrl なしの「v」が入力されることがあるため
+    """
+    keyboard.press('ctrl')
+    try:
+        time.sleep(_PASTE_KEY_GAP)
+        keyboard.send('v')
+        time.sleep(_PASTE_KEY_GAP)
+    finally:
+        keyboard.release('ctrl')
