@@ -24,6 +24,9 @@ _user32.GetAsyncKeyState.restype = ctypes.c_short
 # Shift / Ctrl / Alt / 左右の Windows キー
 _MODIFIER_VKS = [0x10, 0x11, 0x12, 0x5B, 0x5C]
 
+# 同じキーを続けて送るときの間(秒)
+KEY_REPEAT_GAP = 0.005
+
 _last = None
 _lock = threading.Lock()
 
@@ -50,6 +53,17 @@ def wait_for_modifiers_released(timeout=2.0):
         time.sleep(0.02)
 
 
+def send_key_repeated(key, count):
+    """
+    同じキーを count 回、少し間をあけて送る(Backspace で消す、矢印でカーソルを動かす など)
+    キー入力を一度受け取って出し直すソフト(キー配列の変更など)を使っていると、
+    間をあけずに続けて送った場合に、一部が届かないことがあるため
+    """
+    for _ in range(count):
+        keyboard.send(key)
+        time.sleep(KEY_REPEAT_GAP)
+
+
 def undo():
     """直前に貼り付けた文章を消す。取り消すものが無ければ何もしない"""
     global _last
@@ -61,6 +75,5 @@ def undo():
         return
 
     wait_for_modifiers_released()
-    for _ in range(len(text)):
-        keyboard.send("backspace")
+    send_key_repeated("backspace", len(text))
     print(f"取り消し：{len(text)} 文字")

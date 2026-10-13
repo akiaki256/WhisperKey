@@ -28,8 +28,6 @@ import os
 import threading
 from datetime import datetime
 
-import keyboard
-
 import history
 import paste
 import undo_input
@@ -101,8 +99,7 @@ def choose(index, version):
                   "candidates": [[i["text"], i["note"]] for i in _items]}
         _current = index
     undo_input.wait_for_modifiers_released()   # Enter などを押したまま Backspace を送ると組み合わさるため
-    for _ in range(len(old)):
-        keyboard.send("backspace")
+    undo_input.send_key_repeated("backspace", len(old))
     paste.paste(new)
     undo_input.remember(new)          # 取り消しのキーで、入れ替えたあとの文を消せるように
     history.replace_latest(old, new)  # 直前の入力として LLM に渡るのが、選んだ文になるように
